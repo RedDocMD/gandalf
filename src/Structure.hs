@@ -56,10 +56,10 @@ data TextDescription = TextDescription
 
 data Cell = Cell
   { name     :: String
-  , boundary :: Boundary
-  , path     :: Maybe Path
-  , text     :: Maybe TextDescription
-  , cellRef  :: Maybe CellRef
+  , boundary :: [Boundary]
+  , path     :: [Path]
+  , text     :: [TextDescription]
+  , cellRef  :: [CellRef]
   } deriving (Show)
 
 -- Parsing: AST -> Structure
@@ -198,18 +198,15 @@ parseTextDescription node
       [] -> parseError "parseTextDescription: Xy has no points"
   where children = astChildren node
 
--- | Only the first Boundary/Path/Text/Sref among a structure's elements is
--- captured, matching Cell's single-valued fields; a structure with more
--- than one of a given element kind will have the rest silently ignored.
 parseCell :: AST -> Cell
 parseCell node
   | astKind node /= GdsBgnStr = parseError "parseCell: expected a BgnStr node"
   | otherwise = Cell
       { name     = stringPayload (astRecord (requireChild "Cell" GdsStrName children))
-      , boundary = parseBoundary (requireChild "Cell" GdsBoundary children)
-      , path     = parsePath <$> findChild GdsPath children
-      , text     = parseTextDescription <$> findChild GdsText children
-      , cellRef  = parseCellRef <$> findChild GdsSref children
+      , boundary = map parseBoundary (findChildren GdsBoundary children)
+      , path     = map parsePath (findChildren GdsPath children)
+      , text     = map parseTextDescription (findChildren GdsText children)
+      , cellRef  = map parseCellRef (findChildren GdsSref children)
       }
   where children = astChildren node
 
