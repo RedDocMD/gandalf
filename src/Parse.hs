@@ -63,7 +63,7 @@ data GdsRecord =
   | GdsPathType
   | GdsBgnExtn
   | GdsEndExtn
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 instance FromGdsWord8 GdsRecord where
   fromGdsWord8 0  = Right GdsHeader
@@ -126,6 +126,39 @@ data GdsRecordT =
   | GdsBgnExtnT Int
   | GdsEndExtnT Int
   deriving (Show)
+
+-- | Recovers the record type of a decoded record, discarding its payload.
+-- Useful for grouping/summarizing records by kind.
+gdsRecordKind :: GdsRecordT -> GdsRecord
+gdsRecordKind r = case r of
+  GdsHeaderT{}       -> GdsHeader
+  GdsLibNameT{}      -> GdsLibName
+  GdsBgnLibT{}       -> GdsBgnLib
+  GdsUnitsT{}        -> GdsUnits
+  GdsEndLibT         -> GdsEndLib
+  GdsBgnStrT{}       -> GdsBgnStr
+  GdsStrNameT{}      -> GdsStrName
+  GdsEndStrT         -> GdsEndStr
+  GdsBoundaryT       -> GdsBoundary
+  GdsPathT           -> GdsPath
+  GdsSrefT           -> GdsSref
+  GdsArefT           -> GdsAref
+  GdsTextT           -> GdsText
+  GdsLayerT{}        -> GdsLayer
+  GdsDataTypeT{}     -> GdsDataType
+  GdsWidthT{}        -> GdsWidth
+  GdsXyT{}           -> GdsXy
+  GdsEndElT          -> GdsEndEl
+  GdsSnameT{}        -> GdsSname
+  GdsTextTypeT{}     -> GdsTextType
+  GdsPresentationT{} -> GdsPresentation
+  GdsStringT{}       -> GdsString
+  GdsStransT{}       -> GdsStrans
+  GdsMagT{}          -> GdsMag
+  GdsAngleT{}        -> GdsAngle
+  GdsPathTypeT{}     -> GdsPathType
+  GdsBgnExtnT{}      -> GdsBgnExtn
+  GdsEndExtnT{}      -> GdsEndExtn
 
 data GdsDateTime = GdsDateTime
   { gdsModTime :: LocalTime

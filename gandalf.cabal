@@ -45,6 +45,7 @@ executable gandalf
         gandalf,
         attoparsec,
         bytestring,
+        containers,
         optparse-applicative
 
     hs-source-dirs:   exe
