@@ -20,7 +20,7 @@ import           Structure                  (Boundary (Boundary),
                                               TextDescription (TextDescription),
                                               parseCells)
 
-data Command = Dump FilePath | Elstr FilePath
+data Command = Dump FilePath (Maybe String) | Elstr FilePath
 
 commandParser :: Parser Command
 commandParser = subparser
@@ -28,7 +28,14 @@ commandParser = subparser
  <> command "elstr" (info (elstrParser <**> helper) (progDesc "Summarize the unique sets of sub-units found within each hierarchical GDS unit")) )
 
 dumpParser :: Parser Command
-dumpParser = Dump <$> fileArgument
+dumpParser = Dump <$> fileArgument <*> cellNameOption
+
+cellNameOption :: Parser (Maybe String)
+cellNameOption = optional . strOption $
+     long "cell"
+  <> short 'c'
+  <> metavar "NAME"
+  <> help "Only dump the cell with this name"
 
 elstrParser :: Parser Command
 elstrParser = Elstr <$> fileArgument
@@ -40,17 +47,18 @@ main :: IO ()
 main = do
   cmd <- execParser opts
   case cmd of
-    Dump path  -> runDump path
-    Elstr path -> runElstr path
+    Dump path cellName -> runDump path cellName
+    Elstr path         -> runElstr path
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
 
-runDump :: FilePath -> IO ()
-runDump path = do
+runDump :: FilePath -> Maybe String -> IO ()
+runDump path cellName = do
   contents <- BS.readFile path
-  let cells = parseCells (buildForest (parseAllRecords contents))
-  mapM_ putStrLn (renderForest (map cellTree cells))
+  let cells    = parseCells (buildForest (parseAllRecords contents))
+      selected = maybe cells (\nm -> filter (\(Cell cnm _ _ _ _) -> cnm == nm) cells) cellName
+  mapM_ putStrLn (renderForest (map cellTree selected))
 
 -- | A label together with the labels nested beneath it - used to render
 -- parsed Cells with the same box-drawing style as the raw record dump used
