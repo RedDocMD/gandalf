@@ -1,0 +1,2216 @@
+{
+  "layers": [
+    {
+      "name": "prBoundary.boundary",
+      "layer": 235,
+      "datatype": 4
+    },
+    {
+      "name": "pwell.drawing",
+      "layer": 64,
+      "datatype": 44
+    },
+    {
+      "name": "pwell.pin",
+      "layer": 122,
+      "datatype": 16
+    },
+    {
+      "name": "pwell.label",
+      "layer": 64,
+      "datatype": 59
+    },
+    {
+      "name": "pwell.res",
+      "layer": 64,
+      "datatype": 13
+    },
+    {
+      "name": "pwell.cut",
+      "layer": 64,
+      "datatype": 14
+    },
+    {
+      "name": "pwelliso.pin",
+      "layer": 44,
+      "datatype": 16
+    },
+    {
+      "name": "pwelliso.label",
+      "layer": 44,
+      "datatype": 5
+    },
+    {
+      "name": "nwell.drawing",
+      "layer": 64,
+      "datatype": 20
+    },
+    {
+      "name": "nwell.net",
+      "layer": 84,
+      "datatype": 23
+    },
+    {
+      "name": "nwell.pin",
+      "layer": 64,
+      "datatype": 16
+    },
+    {
+      "name": "nwell.label",
+      "layer": 64,
+      "datatype": 5
+    },
+    {
+      "name": "dnwell.drawing",
+      "layer": 64,
+      "datatype": 18
+    },
+    {
+      "name": "vhvi.drawing",
+      "layer": 74,
+      "datatype": 21
+    },
+    {
+      "name": "diff.drawing",
+      "layer": 65,
+      "datatype": 20
+    },
+    {
+      "name": "diff.res",
+      "layer": 65,
+      "datatype": 13
+    },
+    {
+      "name": "diff.cut",
+      "layer": 65,
+      "datatype": 14
+    },
+    {
+      "name": "diff.pin",
+      "layer": 65,
+      "datatype": 16
+    },
+    {
+      "name": "diff.label",
+      "layer": 65,
+      "datatype": 6
+    },
+    {
+      "name": "diff.net",
+      "layer": 65,
+      "datatype": 23
+    },
+    {
+      "name": "diff.boundary",
+      "layer": 65,
+      "datatype": 4
+    },
+    {
+      "name": "diff.hv",
+      "layer": 65,
+      "datatype": 8
+    },
+    {
+      "name": "tap.drawing",
+      "layer": 65,
+      "datatype": 44
+    },
+    {
+      "name": "tap.pin",
+      "layer": 65,
+      "datatype": 48
+    },
+    {
+      "name": "tap.net",
+      "layer": 65,
+      "datatype": 41
+    },
+    {
+      "name": "tap.boundary",
+      "layer": 65,
+      "datatype": 60
+    },
+    {
+      "name": "tap.label",
+      "layer": 65,
+      "datatype": 5
+    },
+    {
+      "name": "psdm.drawing",
+      "layer": 94,
+      "datatype": 20
+    },
+    {
+      "name": "nsdm.drawing",
+      "layer": 93,
+      "datatype": 44
+    },
+    {
+      "name": "poly.drawing",
+      "layer": 66,
+      "datatype": 20
+    },
+    {
+      "name": "poly.pin",
+      "layer": 66,
+      "datatype": 16
+    },
+    {
+      "name": "poly.res",
+      "layer": 66,
+      "datatype": 13
+    },
+    {
+      "name": "poly.cut",
+      "layer": 66,
+      "datatype": 14
+    },
+    {
+      "name": "poly.gate",
+      "layer": 66,
+      "datatype": 9
+    },
+    {
+      "name": "poly.label",
+      "layer": 66,
+      "datatype": 5
+    },
+    {
+      "name": "poly.boundary",
+      "layer": 66,
+      "datatype": 4
+    },
+    {
+      "name": "poly.probe",
+      "layer": 66,
+      "datatype": 25
+    },
+    {
+      "name": "poly.short",
+      "layer": 66,
+      "datatype": 15
+    },
+    {
+      "name": "poly.net",
+      "layer": 66,
+      "datatype": 23
+    },
+    {
+      "name": "poly.model",
+      "layer": 66,
+      "datatype": 83
+    },
+    {
+      "name": "ldntm.drawing",
+      "layer": 11,
+      "datatype": 44
+    },
+    {
+      "name": "lvtn.drawing",
+      "layer": 125,
+      "datatype": 44
+    },
+    {
+      "name": "hvtp.drawing",
+      "layer": 78,
+      "datatype": 44
+    },
+    {
+      "name": "hvtr.drawing",
+      "layer": 18,
+      "datatype": 20
+    },
+    {
+      "name": "tunm.drawing",
+      "layer": 80,
+      "datatype": 20
+    },
+    {
+      "name": "licon1.drawing",
+      "layer": 66,
+      "datatype": 44
+    },
+    {
+      "name": "licon1.boundary",
+      "layer": 66,
+      "datatype": 60
+    },
+    {
+      "name": "licon1.pin",
+      "layer": 66,
+      "datatype": 58
+    },
+    {
+      "name": "licon1.net",
+      "layer": 66,
+      "datatype": 41
+    },
+    {
+      "name": "npc.drawing",
+      "layer": 95,
+      "datatype": 20
+    },
+    {
+      "name": "li1.drawing",
+      "layer": 67,
+      "datatype": 20
+    },
+    {
+      "name": "li1.pin",
+      "layer": 67,
+      "datatype": 16
+    },
+    {
+      "name": "li1.res",
+      "layer": 67,
+      "datatype": 13
+    },
+    {
+      "name": "li1.cut",
+      "layer": 67,
+      "datatype": 14
+    },
+    {
+      "name": "li1.label",
+      "layer": 67,
+      "datatype": 5
+    },
+    {
+      "name": "li1.net",
+      "layer": 67,
+      "datatype": 23
+    },
+    {
+      "name": "li1.boundary",
+      "layer": 67,
+      "datatype": 4
+    },
+    {
+      "name": "li1.blockage",
+      "layer": 67,
+      "datatype": 10
+    },
+    {
+      "name": "li1.short",
+      "layer": 67,
+      "datatype": 15
+    },
+    {
+      "name": "li1.probe",
+      "layer": 67,
+      "datatype": 25
+    },
+    {
+      "name": "mcon.drawing",
+      "layer": 67,
+      "datatype": 44
+    },
+    {
+      "name": "mcon.boundary",
+      "layer": 67,
+      "datatype": 60
+    },
+    {
+      "name": "mcon.pin",
+      "layer": 67,
+      "datatype": 48
+    },
+    {
+      "name": "mcon.net",
+      "layer": 67,
+      "datatype": 41
+    },
+    {
+      "name": "met1.drawing",
+      "layer": 68,
+      "datatype": 20
+    },
+    {
+      "name": "met1.res",
+      "layer": 68,
+      "datatype": 13
+    },
+    {
+      "name": "met1.cut",
+      "layer": 68,
+      "datatype": 14
+    },
+    {
+      "name": "met1.pin",
+      "layer": 68,
+      "datatype": 16
+    },
+    {
+      "name": "met1.label",
+      "layer": 68,
+      "datatype": 5
+    },
+    {
+      "name": "met1.net",
+      "layer": 68,
+      "datatype": 23
+    },
+    {
+      "name": "met1.boundary",
+      "layer": 68,
+      "datatype": 4
+    },
+    {
+      "name": "met1.blockage",
+      "layer": 68,
+      "datatype": 10
+    },
+    {
+      "name": "met1.short",
+      "layer": 68,
+      "datatype": 15
+    },
+    {
+      "name": "met1.probe",
+      "layer": 68,
+      "datatype": 25
+    },
+    {
+      "name": "met1.option1",
+      "layer": 68,
+      "datatype": 32
+    },
+    {
+      "name": "met1.option2",
+      "layer": 68,
+      "datatype": 33
+    },
+    {
+      "name": "met1.option3",
+      "layer": 68,
+      "datatype": 34
+    },
+    {
+      "name": "met1.option4",
+      "layer": 68,
+      "datatype": 35
+    },
+    {
+      "name": "met1.option5",
+      "layer": 68,
+      "datatype": 36
+    },
+    {
+      "name": "met1.option6",
+      "layer": 68,
+      "datatype": 37
+    },
+    {
+      "name": "met1.option7",
+      "layer": 68,
+      "datatype": 38
+    },
+    {
+      "name": "met1.option8",
+      "layer": 68,
+      "datatype": 39
+    },
+    {
+      "name": "via.drawing",
+      "layer": 68,
+      "datatype": 44
+    },
+    {
+      "name": "via.boundary",
+      "layer": 68,
+      "datatype": 60
+    },
+    {
+      "name": "via.net",
+      "layer": 68,
+      "datatype": 41
+    },
+    {
+      "name": "via.pin",
+      "layer": 68,
+      "datatype": 58
+    },
+    {
+      "name": "met2.drawing",
+      "layer": 69,
+      "datatype": 20
+    },
+    {
+      "name": "met2.res",
+      "layer": 69,
+      "datatype": 13
+    },
+    {
+      "name": "met2.cut",
+      "layer": 69,
+      "datatype": 14
+    },
+    {
+      "name": "met2.pin",
+      "layer": 69,
+      "datatype": 16
+    },
+    {
+      "name": "met2.label",
+      "layer": 69,
+      "datatype": 5
+    },
+    {
+      "name": "met2.net",
+      "layer": 69,
+      "datatype": 23
+    },
+    {
+      "name": "met2.boundary",
+      "layer": 69,
+      "datatype": 4
+    },
+    {
+      "name": "met2.blockage",
+      "layer": 69,
+      "datatype": 10
+    },
+    {
+      "name": "met2.short",
+      "layer": 69,
+      "datatype": 15
+    },
+    {
+      "name": "met2.probe",
+      "layer": 69,
+      "datatype": 25
+    },
+    {
+      "name": "met2.option1",
+      "layer": 69,
+      "datatype": 32
+    },
+    {
+      "name": "met2.option2",
+      "layer": 69,
+      "datatype": 33
+    },
+    {
+      "name": "met2.option3",
+      "layer": 69,
+      "datatype": 34
+    },
+    {
+      "name": "met2.option4",
+      "layer": 69,
+      "datatype": 35
+    },
+    {
+      "name": "met2.option5",
+      "layer": 69,
+      "datatype": 36
+    },
+    {
+      "name": "met2.option6",
+      "layer": 69,
+      "datatype": 37
+    },
+    {
+      "name": "met2.option7",
+      "layer": 69,
+      "datatype": 38
+    },
+    {
+      "name": "met2.option8",
+      "layer": 69,
+      "datatype": 39
+    },
+    {
+      "name": "via2.drawing",
+      "layer": 69,
+      "datatype": 44
+    },
+    {
+      "name": "via2.boundary",
+      "layer": 69,
+      "datatype": 60
+    },
+    {
+      "name": "via2.pin",
+      "layer": 69,
+      "datatype": 58
+    },
+    {
+      "name": "via2.net",
+      "layer": 69,
+      "datatype": 41
+    },
+    {
+      "name": "met3.drawing",
+      "layer": 70,
+      "datatype": 20
+    },
+    {
+      "name": "met3.res",
+      "layer": 70,
+      "datatype": 13
+    },
+    {
+      "name": "met3.cut",
+      "layer": 70,
+      "datatype": 14
+    },
+    {
+      "name": "met3.pin",
+      "layer": 70,
+      "datatype": 16
+    },
+    {
+      "name": "met3.label",
+      "layer": 70,
+      "datatype": 5
+    },
+    {
+      "name": "met3.net",
+      "layer": 70,
+      "datatype": 23
+    },
+    {
+      "name": "met3.boundary",
+      "layer": 70,
+      "datatype": 4
+    },
+    {
+      "name": "met3.blockage",
+      "layer": 70,
+      "datatype": 10
+    },
+    {
+      "name": "met3.short",
+      "layer": 70,
+      "datatype": 15
+    },
+    {
+      "name": "met3.fuse",
+      "layer": 70,
+      "datatype": 17
+    },
+    {
+      "name": "met3.probe",
+      "layer": 70,
+      "datatype": 25
+    },
+    {
+      "name": "met3.option1",
+      "layer": 70,
+      "datatype": 32
+    },
+    {
+      "name": "met3.option2",
+      "layer": 70,
+      "datatype": 33
+    },
+    {
+      "name": "met3.option3",
+      "layer": 70,
+      "datatype": 34
+    },
+    {
+      "name": "met3.option4",
+      "layer": 70,
+      "datatype": 35
+    },
+    {
+      "name": "met3.option5",
+      "layer": 70,
+      "datatype": 36
+    },
+    {
+      "name": "met3.option6",
+      "layer": 70,
+      "datatype": 37
+    },
+    {
+      "name": "met3.option7",
+      "layer": 70,
+      "datatype": 38
+    },
+    {
+      "name": "met3.option8",
+      "layer": 70,
+      "datatype": 39
+    },
+    {
+      "name": "via3.drawing",
+      "layer": 70,
+      "datatype": 44
+    },
+    {
+      "name": "via3.boundary",
+      "layer": 70,
+      "datatype": 60
+    },
+    {
+      "name": "via3.pin",
+      "layer": 70,
+      "datatype": 48
+    },
+    {
+      "name": "via3.net",
+      "layer": 70,
+      "datatype": 41
+    },
+    {
+      "name": "met4.drawing",
+      "layer": 71,
+      "datatype": 20
+    },
+    {
+      "name": "met4.res",
+      "layer": 71,
+      "datatype": 13
+    },
+    {
+      "name": "met4.cut",
+      "layer": 71,
+      "datatype": 14
+    },
+    {
+      "name": "met4.pin",
+      "layer": 71,
+      "datatype": 16
+    },
+    {
+      "name": "met4.label",
+      "layer": 71,
+      "datatype": 5
+    },
+    {
+      "name": "met4.net",
+      "layer": 71,
+      "datatype": 23
+    },
+    {
+      "name": "met4.boundary",
+      "layer": 71,
+      "datatype": 4
+    },
+    {
+      "name": "met4.blockage",
+      "layer": 71,
+      "datatype": 10
+    },
+    {
+      "name": "met4.short",
+      "layer": 71,
+      "datatype": 15
+    },
+    {
+      "name": "met4.fuse",
+      "layer": 71,
+      "datatype": 17
+    },
+    {
+      "name": "met4.probe",
+      "layer": 71,
+      "datatype": 25
+    },
+    {
+      "name": "met4.option1",
+      "layer": 71,
+      "datatype": 32
+    },
+    {
+      "name": "met4.option2",
+      "layer": 71,
+      "datatype": 33
+    },
+    {
+      "name": "met4.option3",
+      "layer": 71,
+      "datatype": 34
+    },
+    {
+      "name": "met4.option4",
+      "layer": 71,
+      "datatype": 35
+    },
+    {
+      "name": "met4.option5",
+      "layer": 71,
+      "datatype": 36
+    },
+    {
+      "name": "met4.option6",
+      "layer": 71,
+      "datatype": 37
+    },
+    {
+      "name": "met4.option7",
+      "layer": 71,
+      "datatype": 38
+    },
+    {
+      "name": "met4.option8",
+      "layer": 71,
+      "datatype": 39
+    },
+    {
+      "name": "via4.drawing",
+      "layer": 71,
+      "datatype": 44
+    },
+    {
+      "name": "via4.boundary",
+      "layer": 71,
+      "datatype": 60
+    },
+    {
+      "name": "via4.pin",
+      "layer": 71,
+      "datatype": 48
+    },
+    {
+      "name": "via4.net",
+      "layer": 71,
+      "datatype": 41
+    },
+    {
+      "name": "met5.drawing",
+      "layer": 72,
+      "datatype": 20
+    },
+    {
+      "name": "met5.res",
+      "layer": 72,
+      "datatype": 13
+    },
+    {
+      "name": "met5.cut",
+      "layer": 72,
+      "datatype": 14
+    },
+    {
+      "name": "met5.pin",
+      "layer": 72,
+      "datatype": 16
+    },
+    {
+      "name": "met5.label",
+      "layer": 72,
+      "datatype": 5
+    },
+    {
+      "name": "met5.net",
+      "layer": 72,
+      "datatype": 23
+    },
+    {
+      "name": "met5.boundary",
+      "layer": 72,
+      "datatype": 4
+    },
+    {
+      "name": "met5.blockage",
+      "layer": 72,
+      "datatype": 10
+    },
+    {
+      "name": "met5.short",
+      "layer": 72,
+      "datatype": 15
+    },
+    {
+      "name": "met5.fuse",
+      "layer": 72,
+      "datatype": 17
+    },
+    {
+      "name": "met5.probe",
+      "layer": 72,
+      "datatype": 25
+    },
+    {
+      "name": "met5.option1",
+      "layer": 72,
+      "datatype": 32
+    },
+    {
+      "name": "met5.option2",
+      "layer": 72,
+      "datatype": 33
+    },
+    {
+      "name": "met5.option3",
+      "layer": 72,
+      "datatype": 34
+    },
+    {
+      "name": "met5.option4",
+      "layer": 72,
+      "datatype": 35
+    },
+    {
+      "name": "met5.option5",
+      "layer": 72,
+      "datatype": 36
+    },
+    {
+      "name": "met5.option6",
+      "layer": 72,
+      "datatype": 37
+    },
+    {
+      "name": "met5.option7",
+      "layer": 72,
+      "datatype": 38
+    },
+    {
+      "name": "met5.option8",
+      "layer": 72,
+      "datatype": 39
+    },
+    {
+      "name": "nsm.drawing",
+      "layer": 61,
+      "datatype": 20
+    },
+    {
+      "name": "pad.drawing",
+      "layer": 76,
+      "datatype": 20
+    },
+    {
+      "name": "pad.label",
+      "layer": 76,
+      "datatype": 5
+    },
+    {
+      "name": "pad.pin",
+      "layer": 76,
+      "datatype": 16
+    },
+    {
+      "name": "pnp.drawing",
+      "layer": 82,
+      "datatype": 44
+    },
+    {
+      "name": "pnp.label",
+      "layer": 82,
+      "datatype": 59
+    },
+    {
+      "name": "npn.drawing",
+      "layer": 82,
+      "datatype": 20
+    },
+    {
+      "name": "npn.label",
+      "layer": 82,
+      "datatype": 5
+    },
+    {
+      "name": "rpm.drawing",
+      "layer": 86,
+      "datatype": 20
+    },
+    {
+      "name": "hvi.drawing",
+      "layer": 75,
+      "datatype": 20
+    },
+    {
+      "name": "capacitor.drawing",
+      "layer": 82,
+      "datatype": 64
+    },
+    {
+      "name": "ncm.drawing",
+      "layer": 92,
+      "datatype": 44
+    },
+    {
+      "name": "cncm.drawing",
+      "layer": 96,
+      "datatype": 44
+    },
+    {
+      "name": "cncm.mask",
+      "layer": 17,
+      "datatype": 0
+    },
+    {
+      "name": "pmm.drawing",
+      "layer": 85,
+      "datatype": 44
+    },
+    {
+      "name": "pmm2.drawing",
+      "layer": 77,
+      "datatype": 20
+    },
+    {
+      "name": "rdl.drawing",
+      "layer": 74,
+      "datatype": 20
+    },
+    {
+      "name": "rdl.pin",
+      "layer": 74,
+      "datatype": 16
+    },
+    {
+      "name": "rdl.label",
+      "layer": 74,
+      "datatype": 5
+    },
+    {
+      "name": "rdl.res",
+      "layer": 74,
+      "datatype": 13
+    },
+    {
+      "name": "rdl.cut",
+      "layer": 74,
+      "datatype": 14
+    },
+    {
+      "name": "rdl.short",
+      "layer": 74,
+      "datatype": 15
+    },
+    {
+      "name": "rdl.option1",
+      "layer": 89,
+      "datatype": 32
+    },
+    {
+      "name": "rdl.option2",
+      "layer": 89,
+      "datatype": 33
+    },
+    {
+      "name": "rdl.option3",
+      "layer": 89,
+      "datatype": 34
+    },
+    {
+      "name": "rdl.option4",
+      "layer": 89,
+      "datatype": 35
+    },
+    {
+      "name": "rdl.option5",
+      "layer": 89,
+      "datatype": 36
+    },
+    {
+      "name": "rdl.option6",
+      "layer": 89,
+      "datatype": 37
+    },
+    {
+      "name": "rdl.option7",
+      "layer": 89,
+      "datatype": 38
+    },
+    {
+      "name": "rdl.option8",
+      "layer": 89,
+      "datatype": 39
+    },
+    {
+      "name": "ubm.drawing",
+      "layer": 127,
+      "datatype": 21
+    },
+    {
+      "name": "bump.drawing",
+      "layer": 127,
+      "datatype": 22
+    },
+    {
+      "name": "inductor.drawing",
+      "layer": 82,
+      "datatype": 24
+    },
+    {
+      "name": "inductor.label",
+      "layer": 82,
+      "datatype": 25
+    },
+    {
+      "name": "inductor.term1",
+      "layer": 82,
+      "datatype": 26
+    },
+    {
+      "name": "inductor.term2",
+      "layer": 82,
+      "datatype": 27
+    },
+    {
+      "name": "inductor.term3",
+      "layer": 82,
+      "datatype": 28
+    },
+    {
+      "name": "capm.drawing",
+      "layer": 89,
+      "datatype": 44
+    },
+    {
+      "name": "capm2.drawing",
+      "layer": 97,
+      "datatype": 44
+    },
+    {
+      "name": "cfom.drawing",
+      "layer": 22,
+      "datatype": 20
+    },
+    {
+      "name": "cfom.mask",
+      "layer": 23,
+      "datatype": 0
+    },
+    {
+      "name": "cfom.maskAdd",
+      "layer": 22,
+      "datatype": 21
+    },
+    {
+      "name": "cfom.maskDrop",
+      "layer": 22,
+      "datatype": 22
+    },
+    {
+      "name": "cfom.fill",
+      "layer": 23,
+      "datatype": 28
+    },
+    {
+      "name": "cfom.waffleDrop",
+      "layer": 22,
+      "datatype": 24
+    },
+    {
+      "name": "fom.dummy",
+      "layer": 22,
+      "datatype": 23
+    },
+    {
+      "name": "cnwm.drawing",
+      "layer": 109,
+      "datatype": 44
+    },
+    {
+      "name": "cnwm.mask",
+      "layer": 21,
+      "datatype": 0
+    },
+    {
+      "name": "cnwm.maskAdd",
+      "layer": 109,
+      "datatype": 43
+    },
+    {
+      "name": "cnwm.maskDrop",
+      "layer": 109,
+      "datatype": 42
+    },
+    {
+      "name": "cdnm.drawing",
+      "layer": 110,
+      "datatype": 20
+    },
+    {
+      "name": "cdnm.mask",
+      "layer": 48,
+      "datatype": 0
+    },
+    {
+      "name": "cdnm.maskAdd",
+      "layer": 110,
+      "datatype": 21
+    },
+    {
+      "name": "cdnm.maskDrop",
+      "layer": 110,
+      "datatype": 22
+    },
+    {
+      "name": "clvtnm.drawing",
+      "layer": 25,
+      "datatype": 44
+    },
+    {
+      "name": "clvtnm.mask",
+      "layer": 25,
+      "datatype": 0
+    },
+    {
+      "name": "clvtnm.maskAdd",
+      "layer": 25,
+      "datatype": 43
+    },
+    {
+      "name": "clvtnm.maskDrop",
+      "layer": 25,
+      "datatype": 42
+    },
+    {
+      "name": "chvtpm.drawing",
+      "layer": 88,
+      "datatype": 44
+    },
+    {
+      "name": "chvtpm.mask",
+      "layer": 97,
+      "datatype": 0
+    },
+    {
+      "name": "chvtpm.maskAdd",
+      "layer": 97,
+      "datatype": 43
+    },
+    {
+      "name": "chvtpm.maskDrop",
+      "layer": 97,
+      "datatype": 42
+    },
+    {
+      "name": "chvtrm.drawing",
+      "layer": 98,
+      "datatype": 44
+    },
+    {
+      "name": "chvtrm.mask",
+      "layer": 98,
+      "datatype": 0
+    },
+    {
+      "name": "chvtrm.maskAdd",
+      "layer": 98,
+      "datatype": 43
+    },
+    {
+      "name": "chvtrm.maskDrop",
+      "layer": 98,
+      "datatype": 42
+    },
+    {
+      "name": "ctunm.drawing",
+      "layer": 96,
+      "datatype": 20
+    },
+    {
+      "name": "ctunm.mask",
+      "layer": 20,
+      "datatype": 0
+    },
+    {
+      "name": "ctunm.maskAdd",
+      "layer": 96,
+      "datatype": 21
+    },
+    {
+      "name": "ctunm.maskDrop",
+      "layer": 96,
+      "datatype": 22
+    },
+    {
+      "name": "conom.drawing",
+      "layer": 87,
+      "datatype": 44
+    },
+    {
+      "name": "conom.mask",
+      "layer": 88,
+      "datatype": 0
+    },
+    {
+      "name": "conom.maskAdd",
+      "layer": 87,
+      "datatype": 43
+    },
+    {
+      "name": "conom.maskDrop",
+      "layer": 87,
+      "datatype": 42
+    },
+    {
+      "name": "cnsdm.drawing",
+      "layer": 29,
+      "datatype": 20
+    },
+    {
+      "name": "cnsdm.mask",
+      "layer": 30,
+      "datatype": 0
+    },
+    {
+      "name": "cnsdm.maskAdd",
+      "layer": 29,
+      "datatype": 21
+    },
+    {
+      "name": "cnsdm.maskDrop",
+      "layer": 29,
+      "datatype": 22
+    },
+    {
+      "name": "cpsdm.drawing",
+      "layer": 31,
+      "datatype": 20
+    },
+    {
+      "name": "cpsdm.mask",
+      "layer": 32,
+      "datatype": 0
+    },
+    {
+      "name": "cpsdm.maskAdd",
+      "layer": 31,
+      "datatype": 21
+    },
+    {
+      "name": "cpsdm.maskDrop",
+      "layer": 31,
+      "datatype": 22
+    },
+    {
+      "name": "cntm.drawing",
+      "layer": 26,
+      "datatype": 20
+    },
+    {
+      "name": "cntm.mask",
+      "layer": 27,
+      "datatype": 0
+    },
+    {
+      "name": "cntm.maskAdd",
+      "layer": 26,
+      "datatype": 21
+    },
+    {
+      "name": "cntm.maskDrop",
+      "layer": 26,
+      "datatype": 22
+    },
+    {
+      "name": "hvntm.drawing",
+      "layer": 125,
+      "datatype": 20
+    },
+    {
+      "name": "chvntm.drawing",
+      "layer": 38,
+      "datatype": 20
+    },
+    {
+      "name": "chvntm.mask",
+      "layer": 39,
+      "datatype": 0
+    },
+    {
+      "name": "chvntm.maskAdd",
+      "layer": 38,
+      "datatype": 21
+    },
+    {
+      "name": "chvntm.maskDrop",
+      "layer": 38,
+      "datatype": 22
+    },
+    {
+      "name": "cldntm.drawing",
+      "layer": 11,
+      "datatype": 20
+    },
+    {
+      "name": "cldntm.mask",
+      "layer": 11,
+      "datatype": 0
+    },
+    {
+      "name": "clvom.drawing",
+      "layer": 45,
+      "datatype": 20
+    },
+    {
+      "name": "clvom.mask",
+      "layer": 46,
+      "datatype": 0
+    },
+    {
+      "name": "clvom.maskAdd",
+      "layer": 45,
+      "datatype": 21
+    },
+    {
+      "name": "clvom.maskDrop",
+      "layer": 45,
+      "datatype": 22
+    },
+    {
+      "name": "cp1m.drawing",
+      "layer": 33,
+      "datatype": 44
+    },
+    {
+      "name": "cp1m.mask",
+      "layer": 28,
+      "datatype": 0
+    },
+    {
+      "name": "cp1m.maskAdd",
+      "layer": 33,
+      "datatype": 43
+    },
+    {
+      "name": "cp1m.maskDrop",
+      "layer": 33,
+      "datatype": 42
+    },
+    {
+      "name": "cp1m.fill",
+      "layer": 28,
+      "datatype": 28
+    },
+    {
+      "name": "cp1m.waffleDrop",
+      "layer": 33,
+      "datatype": 24
+    },
+    {
+      "name": "cli1m.drawing",
+      "layer": 115,
+      "datatype": 44
+    },
+    {
+      "name": "cli1m.mask",
+      "layer": 56,
+      "datatype": 0
+    },
+    {
+      "name": "cli1m.maskAdd",
+      "layer": 115,
+      "datatype": 43
+    },
+    {
+      "name": "cli1m.maskDrop",
+      "layer": 115,
+      "datatype": 42
+    },
+    {
+      "name": "cli1m.fill",
+      "layer": 56,
+      "datatype": 28
+    },
+    {
+      "name": "clicm1.drawing",
+      "layer": 106,
+      "datatype": 44
+    },
+    {
+      "name": "clicm1.mask",
+      "layer": 43,
+      "datatype": 0
+    },
+    {
+      "name": "clicm1.maskAdd",
+      "layer": 106,
+      "datatype": 43
+    },
+    {
+      "name": "clicm1.maskDrop",
+      "layer": 106,
+      "datatype": 42
+    },
+    {
+      "name": "cmm1.drawing",
+      "layer": 62,
+      "datatype": 20
+    },
+    {
+      "name": "cmm1.mask",
+      "layer": 36,
+      "datatype": 0
+    },
+    {
+      "name": "cmm1.maskAdd",
+      "layer": 62,
+      "datatype": 21
+    },
+    {
+      "name": "cmm1.maskDrop",
+      "layer": 62,
+      "datatype": 22
+    },
+    {
+      "name": "cmm1.fill",
+      "layer": 36,
+      "datatype": 28
+    },
+    {
+      "name": "cmm1.waffleDrop",
+      "layer": 62,
+      "datatype": 24
+    },
+    {
+      "name": "cviam.drawing",
+      "layer": 105,
+      "datatype": 20
+    },
+    {
+      "name": "cviam.mask",
+      "layer": 40,
+      "datatype": 0
+    },
+    {
+      "name": "cviam.maskAdd",
+      "layer": 105,
+      "datatype": 21
+    },
+    {
+      "name": "cviam.maskDrop",
+      "layer": 105,
+      "datatype": 22
+    },
+    {
+      "name": "cmm2.drawing",
+      "layer": 105,
+      "datatype": 44
+    },
+    {
+      "name": "cmm2.mask",
+      "layer": 41,
+      "datatype": 0
+    },
+    {
+      "name": "cmm2.maskAdd",
+      "layer": 105,
+      "datatype": 43
+    },
+    {
+      "name": "cmm2.maskDrop",
+      "layer": 105,
+      "datatype": 42
+    },
+    {
+      "name": "cmm2.fill",
+      "layer": 41,
+      "datatype": 28
+    },
+    {
+      "name": "cmm2.waffleDrop",
+      "layer": 105,
+      "datatype": 52
+    },
+    {
+      "name": "cviam2.drawing",
+      "layer": 108,
+      "datatype": 20
+    },
+    {
+      "name": "cviam2.mask",
+      "layer": 44,
+      "datatype": 0
+    },
+    {
+      "name": "cviam2.maskAdd",
+      "layer": 108,
+      "datatype": 21
+    },
+    {
+      "name": "cviam2.maskDrop",
+      "layer": 108,
+      "datatype": 22
+    },
+    {
+      "name": "cmm3.drawing",
+      "layer": 107,
+      "datatype": 20
+    },
+    {
+      "name": "cmm3.mask",
+      "layer": 34,
+      "datatype": 0
+    },
+    {
+      "name": "cmm3.maskAdd",
+      "layer": 107,
+      "datatype": 21
+    },
+    {
+      "name": "cmm3.maskDrop",
+      "layer": 107,
+      "datatype": 22
+    },
+    {
+      "name": "cmm3.fill",
+      "layer": 34,
+      "datatype": 28
+    },
+    {
+      "name": "cmm3.waffleDrop",
+      "layer": 107,
+      "datatype": 24
+    },
+    {
+      "name": "cnpc.drawing",
+      "layer": 44,
+      "datatype": 20
+    },
+    {
+      "name": "cnpc.mask",
+      "layer": 49,
+      "datatype": 0
+    },
+    {
+      "name": "cnpc.maskAdd",
+      "layer": 44,
+      "datatype": 43
+    },
+    {
+      "name": "cnpc.maskDrop",
+      "layer": 44,
+      "datatype": 42
+    },
+    {
+      "name": "cviam3.drawing",
+      "layer": 112,
+      "datatype": 20
+    },
+    {
+      "name": "cviam3.mask",
+      "layer": 50,
+      "datatype": 0
+    },
+    {
+      "name": "cviam3.maskAdd",
+      "layer": 112,
+      "datatype": 21
+    },
+    {
+      "name": "cviam3.maskDrop",
+      "layer": 112,
+      "datatype": 22
+    },
+    {
+      "name": "cnsm.mask",
+      "layer": 22,
+      "datatype": 0
+    },
+    {
+      "name": "cpdm.drawing",
+      "layer": 104,
+      "datatype": 44
+    },
+    {
+      "name": "cpdm.mask",
+      "layer": 37,
+      "datatype": 0
+    },
+    {
+      "name": "cpdm.maskAdd",
+      "layer": 104,
+      "datatype": 43
+    },
+    {
+      "name": "cpdm.maskDrop",
+      "layer": 104,
+      "datatype": 42
+    },
+    {
+      "name": "cpmm.drawing",
+      "layer": 91,
+      "datatype": 44
+    },
+    {
+      "name": "cpbo.mask",
+      "layer": 99,
+      "datatype": 0
+    },
+    {
+      "name": "cmm4.mask",
+      "layer": 51,
+      "datatype": 0
+    },
+    {
+      "name": "cmm4.maskAdd",
+      "layer": 112,
+      "datatype": 43
+    },
+    {
+      "name": "cmm4.maskDrop",
+      "layer": 112,
+      "datatype": 42
+    },
+    {
+      "name": "cmm4.fill",
+      "layer": 51,
+      "datatype": 28
+    },
+    {
+      "name": "cmm4.waffleDrop",
+      "layer": 112,
+      "datatype": 4
+    },
+    {
+      "name": "cviam4.drawing",
+      "layer": 117,
+      "datatype": 20
+    },
+    {
+      "name": "cviam4.mask",
+      "layer": 58,
+      "datatype": 0
+    },
+    {
+      "name": "cviam4.maskAdd",
+      "layer": 117,
+      "datatype": 21
+    },
+    {
+      "name": "cviam4.maskDrop",
+      "layer": 117,
+      "datatype": 22
+    },
+    {
+      "name": "cmm5.mask",
+      "layer": 59,
+      "datatype": 0
+    },
+    {
+      "name": "cmm5.fill",
+      "layer": 59,
+      "datatype": 28
+    },
+    {
+      "name": "cmm5.waffleDrop",
+      "layer": 117,
+      "datatype": 4
+    },
+    {
+      "name": "target.drawing",
+      "layer": 76,
+      "datatype": 44
+    },
+    {
+      "name": "cctm1.drawing",
+      "layer": 101,
+      "datatype": 44
+    },
+    {
+      "name": "cctm1.mask",
+      "layer": 35,
+      "datatype": 0
+    },
+    {
+      "name": "cctm1.maskAdd",
+      "layer": 101,
+      "datatype": 43
+    },
+    {
+      "name": "cctm1.maskDrop",
+      "layer": 101,
+      "datatype": 42
+    },
+    {
+      "name": "crpm.drawing",
+      "layer": 53,
+      "datatype": 44
+    },
+    {
+      "name": "crpm.mask",
+      "layer": 96,
+      "datatype": 0
+    },
+    {
+      "name": "crpm.maskAdd",
+      "layer": 53,
+      "datatype": 43
+    },
+    {
+      "name": "crpm.maskDrop",
+      "layer": 53,
+      "datatype": 42
+    },
+    {
+      "name": "ccu1m.mask",
+      "layer": 93,
+      "datatype": 0
+    },
+    {
+      "name": "cpmm2.mask",
+      "layer": 94,
+      "datatype": 0
+    },
+    {
+      "name": "cubm.mask",
+      "layer": 100,
+      "datatype": 0
+    },
+    {
+      "name": "cbump.mask",
+      "layer": 101,
+      "datatype": 0
+    },
+    {
+      "name": "overlap.drawing",
+      "layer": 90,
+      "datatype": 20
+    },
+    {
+      "name": "overlap.boundary",
+      "layer": 90,
+      "datatype": 4
+    },
+    {
+      "name": "areaid.lowTapDensity",
+      "layer": 81,
+      "datatype": 14
+    },
+    {
+      "name": "areaid.notCritSide",
+      "layer": 81,
+      "datatype": 15
+    },
+    {
+      "name": "areaid.injection",
+      "layer": 81,
+      "datatype": 17
+    },
+    {
+      "name": "areaid.rfdiode",
+      "layer": 81,
+      "datatype": 125
+    },
+    {
+      "name": "areaid.seal",
+      "layer": 81,
+      "datatype": 1
+    },
+    {
+      "name": "areaid.core",
+      "layer": 81,
+      "datatype": 2
+    },
+    {
+      "name": "areaid.frame",
+      "layer": 81,
+      "datatype": 3
+    },
+    {
+      "name": "areaid.esd",
+      "layer": 81,
+      "datatype": 19
+    },
+    {
+      "name": "areaid.dieCut",
+      "layer": 81,
+      "datatype": 11
+    },
+    {
+      "name": "areaid.moduleCut",
+      "layer": 81,
+      "datatype": 10
+    },
+    {
+      "name": "areaid.frameRect",
+      "layer": 81,
+      "datatype": 12
+    },
+    {
+      "name": "areaid.substrateCut",
+      "layer": 81,
+      "datatype": 53
+    },
+    {
+      "name": "areaid.diode",
+      "layer": 81,
+      "datatype": 23
+    },
+    {
+      "name": "areaid.standardc",
+      "layer": 81,
+      "datatype": 4
+    },
+    {
+      "name": "areaid.deadZon",
+      "layer": 81,
+      "datatype": 50
+    },
+    {
+      "name": "areaid.critCorner",
+      "layer": 81,
+      "datatype": 51
+    },
+    {
+      "name": "areaid.critSid",
+      "layer": 81,
+      "datatype": 52
+    },
+    {
+      "name": "areaid.opcDrop",
+      "layer": 81,
+      "datatype": 54
+    },
+    {
+      "name": "areaid.waffleWindow",
+      "layer": 81,
+      "datatype": 13
+    },
+    {
+      "name": "areaid.extendedDrain",
+      "layer": 81,
+      "datatype": 57
+    },
+    {
+      "name": "areaid.lvNative",
+      "layer": 81,
+      "datatype": 60
+    },
+    {
+      "name": "areaid.photo",
+      "layer": 81,
+      "datatype": 81
+    },
+    {
+      "name": "areaid.etest",
+      "layer": 81,
+      "datatype": 101
+    },
+    {
+      "name": "areaid.hvnwell",
+      "layer": 81,
+      "datatype": 63
+    },
+    {
+      "name": "areaid.rdlprobepad",
+      "layer": 81,
+      "datatype": 27
+    },
+    {
+      "name": "areaid.sigPadDiff",
+      "layer": 81,
+      "datatype": 6
+    },
+    {
+      "name": "areaid.sigPadWell",
+      "layer": 81,
+      "datatype": 7
+    },
+    {
+      "name": "areaid.sigPadMetNtr",
+      "layer": 81,
+      "datatype": 8
+    },
+    {
+      "name": "areaid.analog",
+      "layer": 81,
+      "datatype": 79
+    },
+    {
+      "name": "prune.drawing",
+      "layer": 84,
+      "datatype": 44
+    },
+    {
+      "name": "padCenter.drawing",
+      "layer": 81,
+      "datatype": 20
+    },
+    {
+      "name": "met1.psa1",
+      "layer": 68,
+      "datatype": 88
+    },
+    {
+      "name": "met2.psa1",
+      "layer": 69,
+      "datatype": 88
+    },
+    {
+      "name": "met3.psa1",
+      "layer": 70,
+      "datatype": 88
+    },
+    {
+      "name": "met4.psa1",
+      "layer": 71,
+      "datatype": 88
+    },
+    {
+      "name": "met5.psa1",
+      "layer": 72,
+      "datatype": 88
+    },
+    {
+      "name": "met1.psa2",
+      "layer": 68,
+      "datatype": 89
+    },
+    {
+      "name": "met2.psa2",
+      "layer": 69,
+      "datatype": 89
+    },
+    {
+      "name": "met3.psa2",
+      "layer": 70,
+      "datatype": 89
+    },
+    {
+      "name": "met4.psa2",
+      "layer": 71,
+      "datatype": 89
+    },
+    {
+      "name": "met5.psa2",
+      "layer": 72,
+      "datatype": 89
+    },
+    {
+      "name": "met1.psa3",
+      "layer": 68,
+      "datatype": 90
+    },
+    {
+      "name": "met2.psa3",
+      "layer": 69,
+      "datatype": 90
+    },
+    {
+      "name": "met3.psa3",
+      "layer": 70,
+      "datatype": 90
+    },
+    {
+      "name": "met4.psa3",
+      "layer": 71,
+      "datatype": 90
+    },
+    {
+      "name": "met5.psa3",
+      "layer": 72,
+      "datatype": 90
+    },
+    {
+      "name": "met1.psa4",
+      "layer": 68,
+      "datatype": 91
+    },
+    {
+      "name": "met2.psa4",
+      "layer": 69,
+      "datatype": 91
+    },
+    {
+      "name": "met3.psa4",
+      "layer": 70,
+      "datatype": 91
+    },
+    {
+      "name": "met4.psa4",
+      "layer": 71,
+      "datatype": 91
+    },
+    {
+      "name": "met5.psa4",
+      "layer": 72,
+      "datatype": 91
+    },
+    {
+      "name": "met1.psa5",
+      "layer": 68,
+      "datatype": 92
+    },
+    {
+      "name": "met2.psa5",
+      "layer": 69,
+      "datatype": 92
+    },
+    {
+      "name": "met3.psa5",
+      "layer": 70,
+      "datatype": 92
+    },
+    {
+      "name": "met4.psa5",
+      "layer": 71,
+      "datatype": 92
+    },
+    {
+      "name": "met5.psa5",
+      "layer": 72,
+      "datatype": 92
+    },
+    {
+      "name": "met1.psa6",
+      "layer": 68,
+      "datatype": 93
+    },
+    {
+      "name": "met2.psa6",
+      "layer": 69,
+      "datatype": 93
+    },
+    {
+      "name": "met3.psa6",
+      "layer": 70,
+      "datatype": 93
+    },
+    {
+      "name": "met4.psa6",
+      "layer": 71,
+      "datatype": 93
+    },
+    {
+      "name": "met5.psa6",
+      "layer": 72,
+      "datatype": 93
+    },
+    {
+      "name": "rdl.psa1",
+      "layer": 74,
+      "datatype": 88
+    },
+    {
+      "name": "rdl.psa2",
+      "layer": 74,
+      "datatype": 89
+    },
+    {
+      "name": "rdl.psa3",
+      "layer": 74,
+      "datatype": 90
+    },
+    {
+      "name": "rdl.psa4",
+      "layer": 74,
+      "datatype": 91
+    },
+    {
+      "name": "rdl.psa5",
+      "layer": 74,
+      "datatype": 92
+    },
+    {
+      "name": "rdl.psa6",
+      "layer": 74,
+      "datatype": 93
+    },
+    {
+      "name": "blanking.drawing",
+      "layer": 124,
+      "datatype": 40
+    },
+    {
+      "name": "urpm",
+      "layer": 79,
+      "datatype": 20
+    },
+    {
+      "name": "text.drawing",
+      "layer": 83,
+      "datatype": 44
+    },
+    {
+      "name": "boundary",
+      "layer": 235,
+      "datatype": 0
+    },
+    {
+      "name": "boundary",
+      "layer": 236,
+      "datatype": 0
+    },
+    {
+      "name": "boundary",
+      "layer": 235,
+      "datatype": 252
+    },
+    {
+      "name": "boundary",
+      "layer": 235,
+      "datatype": 250
+    },
+    {
+      "name": "r1c.drawing",
+      "layer": 201,
+      "datatype": 20
+    },
+    {
+      "name": "v20.drawing",
+      "layer": 74,
+      "datatype": 22
+    }
+  ],
+  "direct_connections": [
+    {
+      "layer": "poly"
+    },
+    {
+      "layer": "li1"
+    },
+    {
+      "layer": "met1"
+    },
+    {
+      "layer": "met2"
+    },
+    {
+      "layer": "met3"
+    },
+    {
+      "layer": "met4"
+    },
+    {
+      "layer": "met5"
+    }
+  ],
+  "cross_connections": [
+    {
+      "layers": [
+        "poly",
+        "li1"
+      ],
+      "via": "licon1"
+    },
+    {
+      "layers": [
+        "li1",
+        "met1"
+      ],
+      "via": "mcon"
+    },
+    {
+      "layers": [
+        "met1",
+        "met2"
+      ],
+      "via": "via"
+    },
+    {
+      "layers": [
+        "met2",
+        "met3"
+      ],
+      "via": "via2"
+    },
+    {
+      "layers": [
+        "met3",
+        "met4"
+      ],
+      "via": "via3"
+    },
+    {
+      "layers": [
+        "met4",
+        "met5"
+      ],
+      "via": "via4"
+    }
+  ]
+}
