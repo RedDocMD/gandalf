@@ -5,6 +5,7 @@ import           AST                        (AST (..), astKind, buildForest,
 import qualified Data.Attoparsec.ByteString as DAP
 import qualified Data.ByteString            as BS
 import           Data.List                  (intercalate)
+import qualified Data.Map.Lazy              as MapLazy
 import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (catMaybes)
 import qualified Data.Set                   as Set
@@ -16,16 +17,17 @@ import           Parse                      (GdsPresentationFlags (GdsPresentati
 import           Structure                  (Boundary (Boundary),
                                               Cell (Cell), CellRef (CellRef),
                                               Coordinate (Coordinate),
-                                              Path (Path),
+                                              Layer (Layer), Path (Path),
                                               TextDescription (TextDescription),
                                               parseCells)
 
-data Command = Dump FilePath (Maybe String) | Elstr FilePath
+data Command = Dump FilePath (Maybe String) | Elstr FilePath | Polycount FilePath String Int Int
 
 commandParser :: Parser Command
 commandParser = subparser
   ( command "dump" (info (dumpParser <**> helper) (progDesc "Parse a GDS file and print its cells"))
- <> command "elstr" (info (elstrParser <**> helper) (progDesc "Summarize the unique sets of sub-units found within each hierarchical GDS unit")) )
+ <> command "elstr" (info (elstrParser <**> helper) (progDesc "Summarize the unique sets of sub-units found within each hierarchical GDS unit"))
+ <> command "polycount" (info (polycountParser <**> helper) (progDesc "Count boundary and path elements on a given layer/kind within a cell, including elements pulled in via SREF")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -40,6 +42,13 @@ cellNameOption = optional . strOption $
 elstrParser :: Parser Command
 elstrParser = Elstr <$> fileArgument
 
+polycountParser :: Parser Command
+polycountParser = Polycount
+  <$> fileArgument
+  <*> argument str (metavar "CELL" <> help "Name of the cell to count elements in")
+  <*> argument auto (metavar "LAYER" <> help "Layer index to match")
+  <*> argument auto (metavar "KIND" <> help "Layer kind (datatype) to match")
+
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
 
@@ -47,8 +56,9 @@ main :: IO ()
 main = do
   cmd <- execParser opts
   case cmd of
-    Dump path cellName -> runDump path cellName
-    Elstr path         -> runElstr path
+    Dump path cellName          -> runDump path cellName
+    Elstr path                  -> runElstr path
+    Polycount path cellName l k -> runPolycount path cellName l k
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -184,6 +194,39 @@ renderElstr = concatMap renderUnit . Map.toAscList
     renderShape (shape, counts) =
       "{" ++ intercalate ", " (map (renderElem counts) (Set.toAscList shape)) ++ "}"
     renderElem counts k = show k ++ " (max: " ++ show (Map.findWithDefault 0 k counts) ++ ")"
+
+runPolycount :: FilePath -> String -> Int -> Int -> IO ()
+runPolycount path cellName layerIdx layerKind = do
+  contents <- BS.readFile path
+  let cells  = parseCells (buildForest (parseAllRecords contents))
+      counts = polycounts (matchesLayer layerIdx layerKind) cells
+  case Map.lookup cellName counts of
+    Just n  -> print n
+    Nothing -> error ("polycount: no such cell " ++ show cellName)
+
+-- | Total boundary + path element count on a given layer for every cell,
+-- including elements pulled in transitively through SREFs. Built by
+-- knot-tying: each cell's count looks up the memoized counts of the
+-- cells it references from the very map being constructed, so laziness
+-- resolves the recursion without an explicit topological sort or
+-- traversal order (this would only loop if the library had a cyclic
+-- SREF chain, which GDS doesn't permit).
+--
+-- This must be built with Data.Map.Lazy, not .Strict: Strict's fromList
+-- forces each value into WHNF as it inserts, which demands the
+-- not-yet-finished map's spine before the knot can close and throws
+-- <<loop>> even for a plain DAG of references.
+polycounts :: (Layer -> Bool) -> [Cell] -> Map.Map String Int
+polycounts matches cells = counts
+  where
+    counts = MapLazy.fromList [ (nm, cellCount c) | c@(Cell nm _ _ _ _) <- cells ]
+    cellCount (Cell _ bnds paths _ refs) =
+      length (filter (\(Boundary lyr _) -> matches lyr) bnds)
+      + length (filter (\(Path lyr _ _ _ _) -> matches lyr) paths)
+      + sum [ MapLazy.findWithDefault 0 refNm counts | CellRef refNm _ _ _ <- refs ]
+
+matchesLayer :: Int -> Int -> Layer -> Bool
+matchesLayer wantIdx wantKind (Layer li lk) = li == wantIdx && lk == wantKind
 
 parseAllRecords :: BS.ByteString -> [GdsRecordT]
 parseAllRecords = go
