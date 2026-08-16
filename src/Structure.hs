@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NoFieldSelectors #-}
 
 module Structure where
 import           AST   (AST (..), astKind, findChild, findChildren)
@@ -13,7 +14,7 @@ data Layer = Layer
 data Coordinate = Coordinate
   { x :: Int
   , y :: Int
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data Boundary = Boundary
   { layer  :: Layer
