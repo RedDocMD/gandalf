@@ -16,11 +16,13 @@ module Relationship
   , pinsByInstance
   , LayerPolygon (..)
   , connectivity
+  , connectedComponents
   ) where
 
 import           Data.List       (isSuffixOf)
 import qualified Data.Map.Lazy   as MapLazy
 import qualified Data.Map.Strict as Map
+import qualified Data.Set        as Set
 import           Geom            (Polygon, Rectangle (..),
                                   RectangleBounded (..), Transform (..),
                                   boundaryToPolygon, pathToPolygon,
@@ -260,6 +262,37 @@ connectivity lm cells root =
         ]
       other -> error (toText
         ("connectivity: cross_connections entry must name exactly two layers, got " ++ show other))
+
+-- | Every LayerPolygon named as a node of a 'connectivity' adjacency list
+-- (the map's keys and, symmetrically, every Polygon appearing in one of
+-- its edge lists), labeled with the id of its connected component - the
+-- set of nodes reachable from one another by zero or more edges, treated
+-- as undirected since 'connectivity' already records both directions of
+-- every edge it finds. Component ids are assigned in the order their
+-- component's first node is encountered while walking the map's keys, so
+-- they carry no meaning beyond distinguishing one component from another.
+--
+-- Explores each unvisited node's component by DFS, following edges via
+-- the adjacency list directly rather than consulting the map's keys
+-- again - so a Polygon that only ever appears in an edge list (never as a
+-- key with outgoing edges of its own) is still assigned a component, via
+-- 'Map.findWithDefault' defaulting its own edge list to empty.
+connectedComponents :: Map.Map LayerPolygon [LayerPolygon] -> Map.Map LayerPolygon Int
+connectedComponents adj = go (Map.keys adj) 0 Map.empty
+  where
+    go :: [LayerPolygon] -> Int -> Map.Map LayerPolygon Int -> Map.Map LayerPolygon Int
+    go [] _ assigned = assigned
+    go (n : ns) cid assigned
+      | Map.member n assigned = go ns cid assigned
+      | otherwise             = go ns (cid + 1) (dfs [n] Set.empty assigned)
+      where
+        dfs :: [LayerPolygon] -> Set.Set LayerPolygon -> Map.Map LayerPolygon Int
+            -> Map.Map LayerPolygon Int
+        dfs [] _ acc = acc
+        dfs (x : xs) seen acc
+          | x `Set.member` seen = dfs xs seen acc
+          | otherwise = dfs (Map.findWithDefault [] x adj ++ xs) (Set.insert x seen)
+                            (Map.insert x cid acc)
 
 -- | Every Pin found on a Cell's own directly-defined geometry - not
 -- transitively through its SREFs - by restricting 'pins' to just that

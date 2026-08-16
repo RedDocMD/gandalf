@@ -18,8 +18,9 @@ import           LayerMap          (CrossConnection (..),
                                     DirectConnection (..), LayerEntry (..),
                                     LayerMap (..))
 import           Relationship      (LabeledPolygon (..), LayerPolygon (..),
-                                    Pin (..), connectivity, layerPolygons,
-                                    pins, pinsByInstance)
+                                    Pin (..), connectedComponents,
+                                    connectivity, layerPolygons, pins,
+                                    pinsByInstance)
 import           Structure         (Boundary (..), Cell (..), CellRef (..),
                                     Coordinate (..), Layer (..),
                                     TextDescription (..))
@@ -235,6 +236,13 @@ textAt lyr tx ty val = TextDescription
 layerEntry :: String -> Int -> Int -> LayerEntry
 layerEntry nm lyr dt = LayerEntry { name = nm, layer = lyr, datatype = dt }
 
+-- | A LayerPolygon distinguished only by position - for connectedComponents
+-- tests that need distinct, orderable node identities but no real
+-- overlap/geometry.
+node :: Int -> Int -> LayerPolygon
+node minX minY = LayerPolygon "poly"
+  (LabeledPolygon (boundaryToPolygon (boundaryOn (Layer 1 0) minX minY (minX + 1) (minY + 1))) "TOP")
+
 relationshipTests :: TestTree
 relationshipTests = testGroup "Relationship"
   [ testGroup "layerPolygons"
@@ -435,5 +443,58 @@ relationshipTests = testGroup "Relationship"
         case result of
           Left _  -> return ()
           Right v -> assertFailure ("expected an error, got " ++ show v)
+    ]
+
+  , testGroup "connectedComponents"
+    [ testCase "nodes linked by a path of edges share a component id; a separate edge forms a different one" $ do
+        let a = node 0 0
+            b = node 10 10
+            c = node 20 20
+            d = node 30 30
+            e = node 40 40
+            adj = Map.fromList
+              [ (a, [b])
+              , (b, [a, c])
+              , (c, [b])
+              , (d, [e])
+              , (e, [d])
+              ]
+            result = connectedComponents adj
+        Map.lookup a result @?= Map.lookup b result
+        Map.lookup b result @?= Map.lookup c result
+        Map.lookup d result @?= Map.lookup e result
+        assertBool "disjoint edges get different component ids"
+          (Map.lookup a result /= Map.lookup d result)
+
+    , testCase "a node that only appears in another node's edge list is still assigned a component" $ do
+        let a = node 0 0
+            b = node 10 10
+            adj = Map.fromList [ (a, [b]) ]
+            result = connectedComponents adj
+        Map.member b result @?= True
+        Map.lookup a result @?= Map.lookup b result
+
+    , testCase "computed from connectivity's own adjacency list: overlapping pairs share a component, disjoint pairs don't" $ do
+        let polyLyr = Layer { index = 1, kind = 0 }
+            polyA = boundaryOn polyLyr 0 0 10 10
+            polyB = boundaryOn polyLyr 8 0 20 10
+            polyC = boundaryOn polyLyr 100 100 110 110
+            polyD = boundaryOn polyLyr 108 100 120 110
+            top   = cellWith "TOP" [polyA, polyB, polyC, polyD] [] []
+            lm = LayerMap
+              { layers = [layerEntry "poly.drawing" 1 0]
+              , directConnections = [DirectConnection { layer = "poly" }]
+              , crossConnections = []
+              }
+            adj   = connectivity lm [top] top
+            comps = connectedComponents adj
+            lpA = LayerPolygon "poly" (LabeledPolygon (boundaryToPolygon polyA) "TOP")
+            lpB = LayerPolygon "poly" (LabeledPolygon (boundaryToPolygon polyB) "TOP")
+            lpC = LayerPolygon "poly" (LabeledPolygon (boundaryToPolygon polyC) "TOP")
+            lpD = LayerPolygon "poly" (LabeledPolygon (boundaryToPolygon polyD) "TOP")
+        Map.lookup lpA comps @?= Map.lookup lpB comps
+        Map.lookup lpC comps @?= Map.lookup lpD comps
+        assertBool "disjoint overlapping pairs get different component ids"
+          (Map.lookup lpA comps /= Map.lookup lpC comps)
     ]
   ]

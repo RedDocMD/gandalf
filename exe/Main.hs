@@ -23,9 +23,9 @@ import           Parse                      (GdsPresentationFlags (GdsPresentati
                                               parseGdsRecord)
 import           Relationship               (LabeledPolygon (LabeledPolygon),
                                               LayerPolygon (LayerPolygon),
-                                              Pin (Pin), connectivity,
-                                              layerPolygons, pins,
-                                              pinsByInstance)
+                                              Pin (Pin), connectedComponents,
+                                              connectivity, layerPolygons,
+                                              pins, pinsByInstance)
 import           Structure                  (Boundary (Boundary),
                                               Cell (Cell), CellRef (CellRef),
                                               Coordinate (Coordinate),
@@ -40,6 +40,7 @@ data Command
   | Polycount FilePath String Int Int
   | Intersections FilePath String Int Int Int Int (Maybe FilePath)
   | Connectivity FilePath String FilePath
+  | ConnectedComponents FilePath String FilePath
   | PinDump FilePath String FilePath Bool
 
 commandParser :: Parser Command
@@ -49,6 +50,7 @@ commandParser = subparser
  <> command "polycount" (info (polycountParser <**> helper) (progDesc "Count boundary and path elements on a given layer/kind within a cell, including elements pulled in via SREF"))
  <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle and true polygon intersections among the boundary and path elements on two layer/kind pairs in a cell, including elements pulled in via SREF"))
  <> command "connectivity" (info (connectivityParser <**> helper) (progDesc "Summarize direct- and cross-layer physical connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
+ <> command "components" (info (componentsParser <**> helper) (progDesc "Print the total number of connected components (nets) found via direct/cross-layer connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
  <> command "pins" (info (pinsParser <**> helper) (progDesc "Dump every pin found within a cell, per a layer-map JSON file, grouped by the specific instance (SREF placement) it belongs to")) )
 
 dumpParser :: Parser Command
@@ -92,6 +94,12 @@ connectivityParser = Connectivity
   <*> argument str (metavar "CELL" <> help "Name of the cell to find connectivity in")
   <*> argument str (metavar "LAYER_MAP" <> help "Path to a layer-map JSON file describing named layers and their direct/cross connections (see layers/sky130_layers.json)")
 
+componentsParser :: Parser Command
+componentsParser = ConnectedComponents
+  <$> fileArgument
+  <*> argument str (metavar "CELL" <> help "Name of the cell to find connected components in")
+  <*> argument str (metavar "LAYER_MAP" <> help "Path to a layer-map JSON file describing named layers and their direct/cross connections (see layers/sky130_layers.json)")
+
 pinsParser :: Parser Command
 pinsParser = PinDump
   <$> fileArgument
@@ -115,6 +123,7 @@ main = do
     Polycount path cellName l k             -> runPolycount path cellName l k
     Intersections path cellName l1 k1 l2 k2 out -> runIntersections path cellName l1 k1 l2 k2 out
     Connectivity path cellName layerMapPath -> runConnectivity path cellName layerMapPath
+    ConnectedComponents path cellName layerMapPath -> runConnectedComponents path cellName layerMapPath
     PinDump path cellName layerMapPath merge -> runPinDump path cellName layerMapPath merge
   where
     opts = info (commandParser <**> helper)
@@ -408,6 +417,40 @@ renderConnectivitySummary conn = unlines $
     (intra, inter, total) = summarizeConnectivity conn
     intraRows = [ [lyr, show n] | (lyr, n) <- intra ]
     interRows = [ [lyrA, lyrB, show n] | ((lyrA, lyrB), n) <- inter ]
+
+runConnectedComponents :: FilePath -> String -> FilePath -> IO ()
+runConnectedComponents path cellName layerMapPath = do
+  contents <- BS.readFile path
+  lm       <- readLayerMap layerMapPath
+  let cells = parseCells (buildForest (parseAllRecords contents))
+  case find (\(Cell nm _ _ _ _) -> nm == cellName) cells of
+    Just root -> putStr (renderComponentsSummary (connectivity lm cells root))
+    Nothing   -> error ("components: no such cell " ++ show cellName)
+
+-- | The number of distinct connected components (nets) - the number of
+-- distinct component ids 'Relationship.connectedComponents' assigns,
+-- found by deduplicating them through a Set rather than relying on them
+-- being contiguous.
+numComponents :: Map.Map LayerPolygon Int -> Int
+numComponents = Set.size . Set.fromList . Map.elems
+
+-- | Renders the node count (every Polygon with at least one connection -
+-- 'Relationship.connectivity' never keys an isolated Polygon), the edge
+-- count (reusing 'summarizeConnectivity''s already-deduplicated total,
+-- since its adjacency list is symmetric), and the connected-component
+-- count, e.g.:
+--
+-- > Nodes                : 42
+-- > Edges                : 37
+-- > Connected components : 5
+renderComponentsSummary :: Map.Map LayerPolygon [LayerPolygon] -> String
+renderComponentsSummary conn = renderIntersectionSummary
+  [ ("Nodes", Map.size conn)
+  , ("Edges", edgeCount)
+  , ("Connected components", numComponents (connectedComponents conn))
+  ]
+  where
+    (_, _, edgeCount) = summarizeConnectivity conn
 
 runPinDump :: FilePath -> String -> FilePath -> Bool -> IO ()
 runPinDump path cellName layerMapPath mergeInstances = do
