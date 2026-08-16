@@ -4,7 +4,8 @@ import           AST                        (AST (..), astKind, buildForest,
                                               isCloser, isOpener)
 import qualified Data.Attoparsec.ByteString as DAP
 import qualified Data.ByteString            as BS
-import           Data.List                  (find, foldl', intercalate)
+import           Data.List                  (find, foldl', intercalate,
+                                              transpose)
 import qualified Data.Map.Lazy              as MapLazy
 import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (catMaybes)
@@ -12,13 +13,15 @@ import qualified Data.Set                   as Set
 import           Geom                       (Polygon, boundIntersections,
                                               polygonIntersection,
                                               polygonVertices)
+import           LayerMap                   (readLayerMap)
 import           Options.Applicative
 import           Parse                      (GdsPresentationFlags (GdsPresentationFlags),
                                               GdsRecord, GdsRecordT,
                                               GdsStransFlags (GdsStransFlags),
                                               parseGdsRecord)
 import           Relationship               (LabeledPolygon (LabeledPolygon),
-                                              layerPolygons)
+                                              LayerPolygon (LayerPolygon),
+                                              connectivity, layerPolygons)
 import           Structure                  (Boundary (Boundary),
                                               Cell (Cell), CellRef (CellRef),
                                               Coordinate (Coordinate),
@@ -32,13 +35,15 @@ data Command
   | Elstr FilePath
   | Polycount FilePath String Int Int
   | Intersections FilePath String Int Int Int Int (Maybe FilePath)
+  | Connectivity FilePath String FilePath
 
 commandParser :: Parser Command
 commandParser = subparser
   ( command "dump" (info (dumpParser <**> helper) (progDesc "Parse a GDS file and print its cells"))
  <> command "elstr" (info (elstrParser <**> helper) (progDesc "Summarize the unique sets of sub-units found within each hierarchical GDS unit"))
  <> command "polycount" (info (polycountParser <**> helper) (progDesc "Count boundary and path elements on a given layer/kind within a cell, including elements pulled in via SREF"))
- <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle and true polygon intersections among the boundary and path elements on two layer/kind pairs in a cell, including elements pulled in via SREF")) )
+ <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle and true polygon intersections among the boundary and path elements on two layer/kind pairs in a cell, including elements pulled in via SREF"))
+ <> command "connectivity" (info (connectivityParser <**> helper) (progDesc "Summarize direct- and cross-layer physical connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -75,6 +80,12 @@ intersectionsParser = Intersections
         <> help "Write an SVG diagram of both layers' shapes and their true intersections to this file"
         ))
 
+connectivityParser :: Parser Command
+connectivityParser = Connectivity
+  <$> fileArgument
+  <*> argument str (metavar "CELL" <> help "Name of the cell to find connectivity in")
+  <*> argument str (metavar "LAYER_MAP" <> help "Path to a layer-map JSON file describing named layers and their direct/cross connections (see layers/sky130_layers.json)")
+
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
 
@@ -86,6 +97,7 @@ main = do
     Elstr path                              -> runElstr path
     Polycount path cellName l k             -> runPolycount path cellName l k
     Intersections path cellName l1 k1 l2 k2 out -> runIntersections path cellName l1 k1 l2 k2 out
+    Connectivity path cellName layerMapPath -> runConnectivity path cellName layerMapPath
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -300,6 +312,84 @@ renderIntersectionSummary rows = unlines (map renderRow rows)
     labelWidth = maximum (map (length . fst) rows)
     renderRow (label, n) =
       label ++ replicate (labelWidth - length label) ' ' ++ " : " ++ show n
+
+runConnectivity :: FilePath -> String -> FilePath -> IO ()
+runConnectivity path cellName layerMapPath = do
+  contents <- BS.readFile path
+  lm       <- readLayerMap layerMapPath
+  let cells = parseCells (buildForest (parseAllRecords contents))
+  case find (\(Cell nm _ _ _ _) -> nm == cellName) cells of
+    Just root -> putStr (renderConnectivitySummary (connectivity lm cells root))
+    Nothing   -> error ("connectivity: no such cell " ++ show cellName)
+
+-- | The unordered pair of named layers each connected Polygon pair spans,
+-- e.g. ("li1", "poly") for a Polygon on "poly" connected to one on "li1" -
+-- sorted so the same pair of layers always groups together regardless of
+-- which side of the connection either Polygon happened to be on.
+canonicalLayerPair :: String -> String -> (String, String)
+canonicalLayerPair a b
+  | a <= b    = (a, b)
+  | otherwise = (b, a)
+
+-- | Every distinct physical connection found between two named layers
+-- (Relationship.connectivity's adjacency list is symmetric - each
+-- connection appears once from either endpoint's perspective - so only
+-- the a < b half of each pair is kept, to count every connection exactly
+-- once), grouped into "intra" (a Polygon connected to another on the very
+-- same named layer, i.e. a direct connection) and "inter" (two different
+-- named layers, bridged by a cross connection's via) counts, plus the
+-- grand total connection count.
+summarizeConnectivity :: Map.Map LayerPolygon [LayerPolygon] -> ([(String, Int)], [((String, String), Int)], Int)
+summarizeConnectivity conn = (intra, inter, length edges)
+  where
+    edges =
+      [ (a, b)
+      | (a, neighbors) <- Map.toList conn
+      , b               <- neighbors
+      , a < b
+      ]
+    counts = Map.fromListWith (+)
+      [ (canonicalLayerPair lyrA lyrB, 1 :: Int)
+      | (LayerPolygon lyrA _, LayerPolygon lyrB _) <- edges
+      ]
+    intra = [ (lyrA, n) | ((lyrA, lyrB), n) <- Map.toAscList counts, lyrA == lyrB ]
+    inter = [ (pair, n) | (pair, n) <- Map.toAscList counts, fst pair /= snd pair ]
+
+-- | Renders rows of cells as a simple space-aligned table with a header
+-- row, each column padded to the width of its widest cell (header
+-- included).
+renderTable :: [String] -> [[String]] -> [String]
+renderTable headerRow rows = map renderRow (headerRow : rows)
+  where
+    widths = map (maximum . map length) (transpose (headerRow : rows))
+    renderRow cells = intercalate "  " (zipWith pad cells widths)
+    pad cell w = cell ++ replicate (w - length cell) ' '
+
+-- | Renders the intra-layer and inter-layer connectivity tables, plus the
+-- total connection count, e.g.:
+--
+-- > Intra-layer connectivity:
+-- >   Layer  Connections
+-- >   li1    2
+-- >   poly   3
+-- >
+-- > Inter-layer connectivity:
+-- >   Layer A  Layer B  Connections
+-- >   li1      met1     4
+-- >   li1      poly     5
+-- >
+-- > Total connections: 14
+renderConnectivitySummary :: Map.Map LayerPolygon [LayerPolygon] -> String
+renderConnectivitySummary conn = unlines $
+  [ "Intra-layer connectivity:" ]
+  ++ map ("  " ++) (renderTable ["Layer", "Connections"] intraRows)
+  ++ [ "", "Inter-layer connectivity:" ]
+  ++ map ("  " ++) (renderTable ["Layer A", "Layer B", "Connections"] interRows)
+  ++ [ "", "Total connections: " ++ show total ]
+  where
+    (intra, inter, total) = summarizeConnectivity conn
+    intraRows = [ [lyr, show n] | (lyr, n) <- intra ]
+    interRows = [ [lyrA, lyrB, show n] | ((lyrA, lyrB), n) <- inter ]
 
 -- | Maps GDS database units onto SVG pixels: scaled to fit the larger of
 -- the drawing's width/height into 'targetSize' pixels, with 'svgPadding'
