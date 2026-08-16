@@ -4,13 +4,16 @@ import           AST                        (AST (..), astKind, buildForest,
                                               isCloser, isOpener)
 import qualified Data.Attoparsec.ByteString as DAP
 import qualified Data.ByteString            as BS
-import           Data.List                  (intercalate)
+import           Data.List                  (foldl', intercalate)
 import qualified Data.Map.Lazy              as MapLazy
 import qualified Data.Map.Strict            as Map
-import           Data.Maybe                 (catMaybes)
+import           Data.Maybe                 (catMaybes, fromMaybe)
 import qualified Data.Set                   as Set
-import           Geom                       (Polygon, boundIntersections,
-                                              boundaryToPolygon, pathToPolygon)
+import           Geom                       (Polygon, Transform (..),
+                                              boundIntersections,
+                                              boundaryToPolygon, pathToPolygon,
+                                              polygonIntersection,
+                                              polygonVertices, transformPolygon)
 import           Options.Applicative
 import           Parse                      (GdsPresentationFlags (GdsPresentationFlags),
                                               GdsRecord, GdsRecordT,
@@ -22,19 +25,20 @@ import           Structure                  (Boundary (Boundary),
                                               Layer (Layer), Path (Path),
                                               TextDescription (TextDescription),
                                               parseCells)
+import           Text.Printf                (printf)
 
 data Command
   = Dump FilePath (Maybe String)
   | Elstr FilePath
   | Polycount FilePath String Int Int
-  | Intersections FilePath String Int Int Int Int
+  | Intersections FilePath String Int Int Int Int (Maybe FilePath)
 
 commandParser :: Parser Command
 commandParser = subparser
   ( command "dump" (info (dumpParser <**> helper) (progDesc "Parse a GDS file and print its cells"))
  <> command "elstr" (info (elstrParser <**> helper) (progDesc "Summarize the unique sets of sub-units found within each hierarchical GDS unit"))
  <> command "polycount" (info (polycountParser <**> helper) (progDesc "Count boundary and path elements on a given layer/kind within a cell, including elements pulled in via SREF"))
- <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle intersections among the boundary and path elements on two layer/kind pairs (within each layer and across both) in a cell, including elements pulled in via SREF")) )
+ <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle and true polygon intersections among the boundary and path elements on two layer/kind pairs in a cell, including elements pulled in via SREF")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -64,6 +68,12 @@ intersectionsParser = Intersections
   <*> argument auto (metavar "KIND1" <> help "First layer kind (datatype)")
   <*> argument auto (metavar "LAYER2" <> help "Second layer index")
   <*> argument auto (metavar "KIND2" <> help "Second layer kind (datatype)")
+  <*> optional (strOption
+        (  long "output"
+        <> short 'o'
+        <> metavar "SVG_FILE"
+        <> help "Write an SVG diagram of both layers' shapes and their true intersections to this file"
+        ))
 
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
@@ -75,7 +85,7 @@ main = do
     Dump path cellName                      -> runDump path cellName
     Elstr path                              -> runElstr path
     Polycount path cellName l k             -> runPolycount path cellName l k
-    Intersections path cellName l1 k1 l2 k2 -> runIntersections path cellName l1 k1 l2 k2
+    Intersections path cellName l1 k1 l2 k2 out -> runIntersections path cellName l1 k1 l2 k2 out
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -245,26 +255,164 @@ polycounts matches cells = counts
 matchesLayer :: Int -> Int -> Layer -> Bool
 matchesLayer wantIdx wantKind (Layer li lk) = li == wantIdx && lk == wantKind
 
-runIntersections :: FilePath -> String -> Int -> Int -> Int -> Int -> IO ()
-runIntersections path cellName l1Idx l1Kind l2Idx l2Kind = do
+runIntersections :: FilePath -> String -> Int -> Int -> Int -> Int -> Maybe FilePath -> IO ()
+runIntersections path cellName l1Idx l1Kind l2Idx l2Kind outputSvg = do
   contents <- BS.readFile path
   let cells   = parseCells (buildForest (parseAllRecords contents))
       shapes1 = layerPolygons (matchesLayer l1Idx l1Kind) cells
       shapes2 = layerPolygons (matchesLayer l2Idx l2Kind) cells
   case (Map.lookup cellName shapes1, Map.lookup cellName shapes2) of
-    (Just ps1, Just ps2) -> mapM_ print
-      [ length ps1
-      , length ps2
-      , length (boundIntersections (ps1 ++ ps2))
-      ]
+    (Just ps1, Just ps2) -> do
+      let boxPairs = boundIntersections (ps1 ++ ps2)
+          -- boundIntersections only guarantees the pairs' bounding rectangles
+          -- overlap; polygonIntersection narrows that down to the pairs (and
+          -- exact regions) that truly overlap. Each pair is only intersected
+          -- once and reused for both the count and the diagram below.
+          truePairs         = catMaybes [ polygonIntersection p1 p2 | (p1, p2) <- boxPairs ]
+          intersectionPolys = concat truePairs
+      putStr $ renderIntersectionSummary
+        [ ("Layer 1 shapes", length ps1)
+        , ("Layer 2 shapes", length ps2)
+        , ("Bounding-box intersections", length boxPairs)
+        , ("True intersections", length truePairs)
+        ]
+      case outputSvg of
+        Nothing      -> return ()
+        Just svgPath -> do
+          writeFile svgPath (renderSvg cellName ps1 ps2 intersectionPolys)
+          putStrLn ("SVG diagram written to " ++ svgPath)
     _ -> error ("intersections: no such cell " ++ show cellName)
 
+-- | Renders label/count rows as a small aligned table, e.g.:
+--
+-- > Layer 1 shapes             : 12
+-- > Bounding-box intersections : 5
+renderIntersectionSummary :: [(String, Int)] -> String
+renderIntersectionSummary rows = unlines (map renderRow rows)
+  where
+    labelWidth = maximum (map (length . fst) rows)
+    renderRow (label, n) =
+      label ++ replicate (labelWidth - length label) ' ' ++ " : " ++ show n
+
+-- | Maps GDS database units onto SVG pixels: scaled to fit the larger of
+-- the drawing's width/height into 'targetSize' pixels, with 'svgPadding'
+-- pixels of margin, and the y axis flipped - GDS y grows upward (see
+-- 'Geom.boundingRect''s convention, where "top" is the *maximum* y), SVG y
+-- grows downward.
+data SvgTransform = SvgTransform
+  { svgScale   :: Double
+  , svgMinX    :: Int
+  , svgMaxY    :: Int
+  , svgPadding :: Double
+  }
+
+targetSize :: Double
+targetSize = 900
+
+mkTransform :: (Int, Int, Int, Int) -> SvgTransform
+mkTransform (minX, _, maxX, maxY) = SvgTransform
+  { svgScale   = targetSize / fromIntegral (max 1 (maxX - minX))
+  , svgMinX    = minX
+  , svgMaxY    = maxY
+  , svgPadding = 30
+  }
+
+-- | The (minX, minY, maxX, maxY) bounds of every vertex of every given
+-- polygon, defaulting to a fixed placeholder box when there are none (e.g.
+-- an empty cell), so the SVG is still well-formed rather than crashing.
+boundingBoxOf :: [Polygon] -> (Int, Int, Int, Int)
+boundingBoxOf polys = case concatMap polygonVertices polys of
+  []                     -> (0, 0, 100, 100)
+  (Coordinate x0 y0 : cs) -> foldl' step (x0, y0, x0, y0) cs
+  where
+    step (minX, minY, maxX, maxY) (Coordinate x y) =
+      (min minX x, min minY y, max maxX x, max maxY y)
+
+transformPoint :: SvgTransform -> Coordinate -> (Double, Double)
+transformPoint t (Coordinate x y) =
+  ( fromIntegral (x - svgMinX t) * svgScale t + svgPadding t
+  , fromIntegral (svgMaxY t - y) * svgScale t + svgPadding t
+  )
+
+canvasSize :: SvgTransform -> (Int, Int, Int, Int) -> (Double, Double)
+canvasSize t (minX, minY, maxX, maxY) =
+  ( fromIntegral (maxX - minX) * svgScale t + 2 * svgPadding t
+  , fromIntegral (maxY - minY) * svgScale t + 2 * svgPadding t
+  )
+
+-- | A single filled/stroked <polygon> tracing a Polygon's ring.
+svgPolygon :: SvgTransform -> String -> String -> Polygon -> String
+svgPolygon t fill stroke p =
+  "  <polygon points=\"" ++ points ++ "\" fill=\"" ++ fill
+    ++ "\" stroke=\"" ++ stroke ++ "\" stroke-width=\"1.5\" />"
+  where
+    points = unwords [ printf "%.2f,%.2f" px py | c <- polygonVertices p, let (px, py) = transformPoint t c ]
+
+-- | Renders the full SVG diagram: layer 1 shapes, then layer 2 shapes, then
+-- the true intersection regions on top (so overlaps are visibly
+-- highlighted), plus a small legend with per-layer shape counts.
+renderSvg :: String -> [Polygon] -> [Polygon] -> [Polygon] -> String
+renderSvg cellName layer1 layer2 intersections = unlines $
+  [ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+  , printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.2f\" height=\"%.2f\" viewBox=\"0 0 %.2f %.2f\">" cw ch cw ch
+  , "  <title>" ++ escapeXml cellName ++ " intersections</title>"
+  , printf "  <rect x=\"0\" y=\"0\" width=\"%.2f\" height=\"%.2f\" fill=\"white\" />" cw ch
+  ]
+  ++ map (svgPolygon t layer1Fill layer1Stroke) layer1
+  ++ map (svgPolygon t layer2Fill layer2Stroke) layer2
+  ++ map (svgPolygon t intersectFill intersectStroke) intersections
+  ++ renderLegend cellName (length layer1) (length layer2) (length intersections)
+  ++ [ "</svg>" ]
+  where
+    bbox     = boundingBoxOf (layer1 ++ layer2)
+    t        = mkTransform bbox
+    (cw, ch) = canvasSize t bbox
+    layer1Fill     = "rgba(70,130,180,0.35)"; layer1Stroke     = "steelblue"
+    layer2Fill     = "rgba(220,20,60,0.35)";  layer2Stroke     = "crimson"
+    intersectFill  = "rgba(255,215,0,0.85)";  intersectStroke  = "darkorange"
+
+renderLegend :: String -> Int -> Int -> Int -> [String]
+renderLegend cellName n1 n2 n3 =
+  [ "  <g font-family=\"sans-serif\" font-size=\"14\">"
+  , "    <text x=\"12\" y=\"20\" font-weight=\"bold\">" ++ escapeXml cellName ++ "</text>"
+  ]
+  ++ concatMap legendRow (zip [0 ..] rows)
+  ++ [ "  </g>" ]
+  where
+    rows =
+      [ ("steelblue",  "Layer 1 shapes (" ++ show n1 ++ ")")
+      , ("crimson",    "Layer 2 shapes (" ++ show n2 ++ ")")
+      , ("darkorange", "True intersections (" ++ show n3 ++ ")")
+      ]
+    legendRow (i, (color, label)) =
+      [ "    <rect x=\"12\" y=\"" ++ show (y - 12) ++ "\" width=\"12\" height=\"12\" fill=\"" ++ color ++ "\" />"
+      , "    <text x=\"30\" y=\"" ++ show y ++ "\">" ++ escapeXml label ++ "</text>"
+      ]
+      where y = 40 + i * 20 :: Int
+
+escapeXml :: String -> String
+escapeXml = concatMap esc
+  where
+    esc '&' = "&amp;"
+    esc '<' = "&lt;"
+    esc '>' = "&gt;"
+    esc '"' = "&quot;"
+    esc c   = [c]
+
 -- | The Polygons of every boundary and path on the matching layers for
--- each cell, including elements pulled in transitively through SREFs.
--- Built by the same knot-tying technique as 'polycounts' - see its comment
--- for why Data.Map.Lazy is required here. As with 'polycounts', elements
--- from referenced cells are gathered using their own local coordinates,
--- without applying the SREF's translation/rotation/mirroring.
+-- each cell, expressed in that cell's own local coordinate system -
+-- including elements pulled in transitively through SREFs, with each
+-- SREF's translation/rotation/mirroring applied so referenced geometry
+-- lands in the right place relative to the referencing cell. Built by the
+-- same knot-tying technique as 'polycounts' - see its comment for why
+-- Data.Map.Lazy is required here.
+--
+-- Composing transforms across multiple levels of nesting falls out for
+-- free from this recursion: each level's SREF transform is applied to its
+-- referenced cell's ALREADY fully-resolved (own-frame) shapes, so a cell's
+-- entry in this map is always just a pure function of its own name - safe
+-- to memoize regardless of how many places reference it, even if each does
+-- so with a different transform.
 layerPolygons :: (Layer -> Bool) -> [Cell] -> Map.Map String [Polygon]
 layerPolygons matches cells = shapes
   where
@@ -272,7 +420,22 @@ layerPolygons matches cells = shapes
     cellShapes (Cell _ bnds paths _ refs) =
       map boundaryToPolygon (filter (\(Boundary lyr _) -> matches lyr) bnds)
       ++ map pathToPolygon (filter (\(Path lyr _ _ _ _) -> matches lyr) paths)
-      ++ concat [ MapLazy.findWithDefault [] refNm shapes | CellRef refNm _ _ _ <- refs ]
+      ++ concat
+           [ map (transformPolygon (srefTransform ref)) (MapLazy.findWithDefault [] refNm shapes)
+           | ref@(CellRef refNm _ _ _) <- refs
+           ]
+
+-- | The placement Geom.Transform an SREF's own translation/rotation/
+-- mirroring describes, per GDS defaults: no STRANS record means no
+-- reflection, and no ANGLE record means no rotation.
+srefTransform :: CellRef -> Transform
+srefTransform (CellRef _ crd trans ang) = Transform
+  { mirrorX  = maybe False stransMirrorX trans
+  , angleDeg = fromMaybe 0 ang
+  , offset   = crd
+  }
+  where
+    stransMirrorX (GdsStransFlags mx _ _) = mx
 
 parseAllRecords :: BS.ByteString -> [GdsRecordT]
 parseAllRecords = go

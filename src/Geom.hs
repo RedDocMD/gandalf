@@ -12,7 +12,10 @@ module Geom
   , boundaryToPolygon
   , pathToPolygon
   , polygonIntersection
+  , polygonVertices
   , samePolygon
+  , Transform (..)
+  , transformPolygon
   ) where
 
 import qualified Data.DList              as DL
@@ -35,6 +38,11 @@ geomError = error . toText
 -- element.
 newtype Polygon = Polygon (NonEmpty Coordinate)
   deriving (Show, Eq)
+
+-- | The ordered ring of coordinates a Polygon traces, closing back to its
+-- start (first == last) - e.g. for rendering a Polygon outside this module.
+polygonVertices :: Polygon -> [Coordinate]
+polygonVertices (Polygon cs) = toList cs
 
 -- | A Boundary's Xy points already form a closed ring per the GDS spec
 -- (the first and last point coincide), so they carry over unchanged.
@@ -102,6 +110,38 @@ pathToPolygon p = Polygon $ case p.kind of
   where
     halfWidth = fromIntegral p.width / 2
     dir       = unitVector p.start p.end
+
+-- | The placement an SREF applies to the geometry of the cell it
+-- references: a reflection about the x-axis (applied first, if set), then
+-- a counter-clockwise rotation, then a translation - the standard GDSII
+-- STRANS\/ANGLE\/SREF composition order. (GDS also allows a magnification
+-- factor, but this codebase doesn't currently parse one off a CellRef, so
+-- there's nothing to apply here.)
+data Transform = Transform
+  { mirrorX  :: Bool
+  , angleDeg :: Double
+  , offset   :: Coordinate
+  }
+
+-- | Applies a Transform to every vertex of a Polygon - e.g. to place a
+-- referenced cell's shapes into the coordinate system of the cell that
+-- SREFs it.
+transformPolygon :: Transform -> Polygon -> Polygon
+transformPolygon t (Polygon cs) = Polygon (fmap (transformCoordinate t) cs)
+
+transformCoordinate :: Transform -> Coordinate -> Coordinate
+transformCoordinate t c = Coordinate
+  { x = round (rx + fromIntegral t.offset.x)
+  , y = round (ry + fromIntegral t.offset.y)
+  }
+  where
+    theta :: Double
+    theta = t.angleDeg * pi / 180
+    mx, my :: Double
+    mx = fromIntegral c.x
+    my = if t.mirrorX then negate (fromIntegral c.y) else fromIntegral c.y
+    rx = mx * cos theta - my * sin theta
+    ry = mx * sin theta + my * cos theta
 
 data Rectangle = Rectangle
   { topLeft :: Coordinate
