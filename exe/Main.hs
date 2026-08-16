@@ -8,12 +8,14 @@ import           Data.List                  (find, foldl', intercalate,
                                               transpose)
 import qualified Data.Map.Lazy              as MapLazy
 import qualified Data.Map.Strict            as Map
-import           Data.Maybe                 (catMaybes)
+import           Data.Maybe                 (catMaybes, listToMaybe)
 import qualified Data.Set                   as Set
 import           Geom                       (Polygon, boundIntersections,
                                               polygonIntersection,
                                               polygonVertices)
-import           LayerMap                   (readLayerMap)
+import           LayerMap                   (LayerEntry (LayerEntry),
+                                              LayerMap (LayerMap),
+                                              readLayerMap)
 import           Options.Applicative
 import           Parse                      (GdsPresentationFlags (GdsPresentationFlags),
                                               GdsRecord, GdsRecordT,
@@ -21,7 +23,9 @@ import           Parse                      (GdsPresentationFlags (GdsPresentati
                                               parseGdsRecord)
 import           Relationship               (LabeledPolygon (LabeledPolygon),
                                               LayerPolygon (LayerPolygon),
-                                              connectivity, layerPolygons)
+                                              Pin (Pin), connectivity,
+                                              layerPolygons, pins,
+                                              pinsByInstance)
 import           Structure                  (Boundary (Boundary),
                                               Cell (Cell), CellRef (CellRef),
                                               Coordinate (Coordinate),
@@ -36,6 +40,7 @@ data Command
   | Polycount FilePath String Int Int
   | Intersections FilePath String Int Int Int Int (Maybe FilePath)
   | Connectivity FilePath String FilePath
+  | PinDump FilePath String FilePath Bool
 
 commandParser :: Parser Command
 commandParser = subparser
@@ -43,7 +48,8 @@ commandParser = subparser
  <> command "elstr" (info (elstrParser <**> helper) (progDesc "Summarize the unique sets of sub-units found within each hierarchical GDS unit"))
  <> command "polycount" (info (polycountParser <**> helper) (progDesc "Count boundary and path elements on a given layer/kind within a cell, including elements pulled in via SREF"))
  <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle and true polygon intersections among the boundary and path elements on two layer/kind pairs in a cell, including elements pulled in via SREF"))
- <> command "connectivity" (info (connectivityParser <**> helper) (progDesc "Summarize direct- and cross-layer physical connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF")) )
+ <> command "connectivity" (info (connectivityParser <**> helper) (progDesc "Summarize direct- and cross-layer physical connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
+ <> command "pins" (info (pinsParser <**> helper) (progDesc "Dump every pin found within a cell, per a layer-map JSON file, grouped by the specific instance (SREF placement) it belongs to")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -86,6 +92,17 @@ connectivityParser = Connectivity
   <*> argument str (metavar "CELL" <> help "Name of the cell to find connectivity in")
   <*> argument str (metavar "LAYER_MAP" <> help "Path to a layer-map JSON file describing named layers and their direct/cross connections (see layers/sky130_layers.json)")
 
+pinsParser :: Parser Command
+pinsParser = PinDump
+  <$> fileArgument
+  <*> argument str (metavar "CELL" <> help "Name of the cell to dump pins for")
+  <*> argument str (metavar "LAYER_MAP" <> help "Path to a layer-map JSON file describing named '.pin' layers (see layers/sky130_layers.json)")
+  <*> switch
+        (  long "merge-instances"
+        <> short 'm'
+        <> help "Treat every instantiation of a Cell (direct or via SREF) as the same, printing each Cell's pins once instead of once per instance, without a Polygon boundary (which would differ, meaninglessly, per instance)"
+        )
+
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
 
@@ -98,6 +115,7 @@ main = do
     Polycount path cellName l k             -> runPolycount path cellName l k
     Intersections path cellName l1 k1 l2 k2 out -> runIntersections path cellName l1 k1 l2 k2 out
     Connectivity path cellName layerMapPath -> runConnectivity path cellName layerMapPath
+    PinDump path cellName layerMapPath merge -> runPinDump path cellName layerMapPath merge
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -390,6 +408,60 @@ renderConnectivitySummary conn = unlines $
     (intra, inter, total) = summarizeConnectivity conn
     intraRows = [ [lyr, show n] | (lyr, n) <- intra ]
     interRows = [ [lyrA, lyrB, show n] | ((lyrA, lyrB), n) <- inter ]
+
+runPinDump :: FilePath -> String -> FilePath -> Bool -> IO ()
+runPinDump path cellName layerMapPath mergeInstances = do
+  contents <- BS.readFile path
+  lm       <- readLayerMap layerMapPath
+  let cells = parseCells (buildForest (parseAllRecords contents))
+  case find (\(Cell nm _ _ _ _) -> nm == cellName) cells of
+    Just root
+      | mergeInstances -> mapM_ putStrLn (renderPinsByCell lm (pins lm cells root))
+      | otherwise       -> mapM_ putStrLn (renderPinsByInstance lm (pinsByInstance lm cells root))
+    Nothing -> error ("pins: no such cell " ++ show cellName)
+
+-- | A Layer's display label: the name of the LayerMap entry with exactly
+-- this (layer, datatype) pair, plus the raw (index, kind) numbers in
+-- brackets - e.g. "li1.pin (67, 16)" - or, if no such entry exists, just
+-- the bracketed numbers.
+layerLabel :: LayerMap -> Layer -> String
+layerLabel (LayerMap entries _ _) (Layer idx knd) =
+  maybe "" (++ " ") nameM ++ "(" ++ show idx ++ ", " ++ show knd ++ ")"
+  where
+    nameM = listToMaybe
+      [ nm | LayerEntry nm lyrNum dt <- entries, lyrNum == idx, dt == knd ]
+
+-- | Renders every instance's Pins (Relationship.pinsByInstance's
+-- grouping - the root Cell's own name, or an SREF-placement-qualified
+-- label for each transitively-reached instance, so two placements of the
+-- very same Cell are dumped as separate groups) as a header line per
+-- instance followed by one indented line per Pin naming its net, Layer
+-- (see 'layerLabel'), and tracing its Polygon's vertex ring, instances in
+-- ascending order of their label, with a blank line between instances.
+renderPinsByInstance :: LayerMap -> Map.Map String [Pin] -> [String]
+renderPinsByInstance lm grouped = concatMap renderInstance (Map.toAscList grouped)
+  where
+    renderInstance (instLabel, ps) =
+      (instLabel ++ ":") : map renderPin ps ++ [""]
+    renderPin (Pin lbl (LabeledPolygon poly _) lyr) =
+      "  " ++ lbl ++ "  layer=" ++ layerLabel lm lyr ++ "  " ++ showCoordinates (polygonVertices poly)
+
+-- | Renders every Cell's Pins once, treating every instantiation (direct
+-- or via SREF) of the same Cell as the same: Pins are grouped by their
+-- owning Cell's bare name (LabeledPolygon.parent) rather than by instance,
+-- and deduplicated by (net name, Layer) - since a Cell's set of pins is a
+-- property of its own definition, identical across every instantiation -
+-- without a Polygon boundary, which would differ, meaninglessly, per
+-- instance.
+renderPinsByCell :: LayerMap -> [Pin] -> [String]
+renderPinsByCell lm allPins = concatMap renderCell (Map.toAscList grouped)
+  where
+    grouped :: Map.Map String (Set.Set (String, Layer))
+    grouped = Map.fromListWith Set.union
+      [ (prnt, Set.singleton (lbl, lyr)) | Pin lbl (LabeledPolygon _ prnt) lyr <- allPins ]
+    renderCell (cellName, pinSet) =
+      (cellName ++ ":") : map renderPin (Set.toAscList pinSet) ++ [""]
+    renderPin (lbl, lyr) = "  " ++ lbl ++ "  layer=" ++ layerLabel lm lyr
 
 -- | Maps GDS database units onto SVG pixels: scaled to fit the larger of
 -- the drawing's width/height into 'targetSize' pixels, with 'svgPadding'

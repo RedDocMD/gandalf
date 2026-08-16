@@ -6,33 +6,32 @@
 -- the Polygons that live on it - including those pulled in transitively
 -- through SREFs - each labeled with the Cell it was directly defined in.
 -- Also relates named pin layers (per a LayerMap) to the text-labeled
--- Polygons that are their pins, and derives a physical-overlap
--- connectivity graph from a LayerMap's direct/cross-layer connections.
+-- Polygons that are their pins.
 module Relationship
   ( LabeledPolygon (..)
   , layerPolygons
   , srefTransform
   , Pin (..)
   , pins
+  , pinsByInstance
   , LayerPolygon (..)
   , connectivity
   ) where
 
-import           Data.List        (isSuffixOf)
-import qualified Data.Map.Lazy    as MapLazy
-import qualified Data.Map.Strict  as Map
-import           Geom             (Polygon, Rectangle (..),
-                                    RectangleBounded (..), Transform (..),
-                                    boundaryToPolygon, pathToPolygon,
-                                    polygonIntersection, transformCoordinate,
-                                    transformPolygon)
-import           LayerMap         (CrossConnection (..),
-                                    DirectConnection (..), LayerEntry (..),
-                                    LayerMap (..))
-import           Parse            (GdsStransFlags (GdsStransFlags))
-import           Structure        (Boundary (..), Cell (..), CellRef (..),
-                                    Coordinate (..), Layer (..), Path (..),
-                                    TextDescription (..))
+import           Data.List       (isSuffixOf)
+import qualified Data.Map.Lazy   as MapLazy
+import qualified Data.Map.Strict as Map
+import           Geom            (Polygon, Rectangle (..),
+                                  RectangleBounded (..), Transform (..),
+                                  boundaryToPolygon, pathToPolygon,
+                                  polygonIntersection, transformCoordinate,
+                                  transformPolygon)
+import           LayerMap        (CrossConnection (..), DirectConnection (..),
+                                  LayerEntry (..), LayerMap (..))
+import           Parse           (GdsStransFlags (..))
+import           Structure       (Boundary (..), Cell (..), CellRef (..),
+                                  Coordinate (..), Layer (..), Path (..),
+                                  TextDescription (..))
 
 -- | A Polygon paired with the name of the Cell it was directly defined in:
 -- the root Cell passed to 'layerPolygons' if it's one of that Cell's own
@@ -261,3 +260,71 @@ connectivity lm cells root =
         ]
       other -> error (toText
         ("connectivity: cross_connections entry must name exactly two layers, got " ++ show other))
+
+-- | Every Pin found on a Cell's own directly-defined geometry - not
+-- transitively through its SREFs - by restricting 'pins' to just that
+-- one Cell's own universe: an SREF naming any other Cell then
+-- contributes no geometry, per 'layerPolygons''s documented fallback for
+-- a Cell missing from its "cells" argument.
+localPins :: LayerMap -> Cell -> [Pin]
+localPins lm c = pins lm [c] c
+
+-- | A human-readable label for one specific SREF placement: the
+-- referenced Cell's name, plus its placement coordinate and (if set) its
+-- rotation/mirroring - e.g. "LEAF@(100,200)" or
+-- "LEAF@(100,200),rot=90.0,mirrored". Two SREFs to the very same Cell get
+-- two different labels as long as they're placed differently, which
+-- 'pinsByInstance' relies on to keep separate instantiations from being
+-- merged together under one shared Cell name.
+instanceLabel :: CellRef -> String
+instanceLabel ref =
+  ref.name ++ "@(" ++ show ref.coord.x ++ "," ++ show ref.coord.y ++ ")" ++ rot ++ mirror
+  where
+    rot = case ref.angle of
+      Just a | a /= 0 -> ",rot=" ++ show a
+      _               -> ""
+    mirror = if maybe False (\s -> s.gdsMirrorX) ref.translation then ",mirrored" else ""
+
+-- | Record update syntax is avoided here for the same reason as
+-- 'transformLabeled' - Pin's own 'polygon' field would make a plain
+-- record update ambiguous.
+transformPin :: Transform -> Pin -> Pin
+transformPin t (Pin lbl (LabeledPolygon p prnt) lyr) =
+  Pin lbl (LabeledPolygon (transformPolygon t p) prnt) lyr
+
+-- | Every Pin reachable from a Cell - including transitively, through
+-- SREFs - grouped by the specific instance it was directly defined on:
+-- the root Cell's own name for a Pin defined directly on it, or an
+-- SREF-placement-qualified label (see 'instanceLabel') for a Pin pulled
+-- in through some SREF.
+--
+-- Unlike 'pins' (whose LabeledPolygon.parent is deliberately just the
+-- bare owning Cell name, stable no matter how many SREFs it's reached
+-- through), this keeps multiple instantiations of the very same Cell -
+-- whether from two different SREFs to it, or the same Cell reached via
+-- two different parent paths - as separate groups, since each is a
+-- physically distinct placement with its own Pins.
+pinsByInstance :: LayerMap -> [Cell] -> Cell -> Map.Map String [Pin]
+pinsByInstance lm cells root =
+  Map.fromListWith (++) [ (lbl, [p]) | (lbl, p) <- walk root.name root ]
+  where
+    cellByName :: Map.Map String Cell
+    cellByName = Map.fromList [ (c.name, c) | c <- cells ]
+
+    -- Every Pin reachable from Cell c (including transitively through its
+    -- own SREFs), expressed in c's own local coordinate system, each
+    -- tagged with the instance label of whichever Cell - c itself, or an
+    -- SREF-placed descendant - it was directly defined on. A descendant's
+    -- Pins are transformed once per level as they bubble back up through
+    -- each enclosing SREF - the same telescoping composition
+    -- 'layerPolygons' relies on - but here the label attached at the
+    -- point of origin is carried up unchanged, rather than collapsing to
+    -- a bare Cell name.
+    walk :: String -> Cell -> [(String, Pin)]
+    walk selfLabel c =
+      [ (selfLabel, p) | p <- localPins lm c ]
+      ++ [ (lbl, transformPin (srefTransform ref) p)
+         | ref <- c.cellRef
+         , Just child <- [Map.lookup ref.name cellByName]
+         , (lbl, p) <- walk (instanceLabel ref) child
+         ]

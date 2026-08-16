@@ -1,27 +1,28 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NoFieldSelectors      #-}
 {-# LANGUAGE OverloadedRecordDot   #-}
 
 module Main (main) where
 
 import           Control.Exception (SomeException, evaluate, try)
-import qualified Data.Map.Strict   as Map
+import qualified Data.Map          as Map
 import qualified Data.Set          as Set
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
 import           Geom              (Polygon, Rectangle (..),
-                                     RectangleBounded (..), boundIntersections,
-                                     boundaryToPolygon, polygonIntersection,
-                                     samePolygon)
+                                    RectangleBounded (..), boundIntersections,
+                                    boundaryToPolygon, polygonIntersection,
+                                    samePolygon)
 import           LayerMap          (CrossConnection (..),
-                                     DirectConnection (..), LayerEntry (..),
-                                     LayerMap (..))
+                                    DirectConnection (..), LayerEntry (..),
+                                    LayerMap (..))
 import           Relationship      (LabeledPolygon (..), LayerPolygon (..),
-                                     Pin (..), connectivity, layerPolygons,
-                                     pins)
+                                    Pin (..), connectivity, layerPolygons,
+                                    pins, pinsByInstance)
 import           Structure         (Boundary (..), Cell (..), CellRef (..),
-                                     Coordinate (..), Layer (..),
-                                     TextDescription (..))
+                                    Coordinate (..), Layer (..),
+                                    TextDescription (..))
 
 data Box = Box
   { label   :: String
@@ -30,7 +31,7 @@ data Box = Box
   deriving Eq
 
 instance RectangleBounded Box where
-  boundingRect = boxRect
+  boundingRect b = b.boxRect
 
 -- | Builds a Box from its bounds (minX, minY, maxX, maxY) rather than the
 -- top-left/width/height representation Rectangle itself uses, since the
@@ -46,9 +47,10 @@ box l minX minY maxX maxY =
 intersectionLabels :: [(Box, Box)] -> Set.Set (String, String)
 intersectionLabels = Set.fromList . map toPair
   where
+    toPair :: (Box, Box) -> (String, String)
     toPair (a, b)
-      | label a <= label b = (label a, label b)
-      | otherwise           = (label b, label a)
+      | a.label <= b.label = (a.label, b.label)
+      | otherwise           = (b.label, a.label)
 
 assertIntersections :: [Box] -> [(String, String)] -> Assertion
 assertIntersections boxes expected =
@@ -89,7 +91,7 @@ assertIntersectionIs a b expected = case polygonIntersection a b of
     (sameComponents expected actual)
 
 main :: IO ()
-main = defaultMain $ testGroup "gandalf" [ geomTests, relationshipTests ]
+main = defaultMain $ testGroup "gandalf" [geomTests, relationshipTests]
 
 geomTests :: TestTree
 geomTests = testGroup "Geom"
@@ -332,6 +334,34 @@ relationshipTests = testGroup "Relationship"
             expected = boundaryOn pinLyr 100 200 110 210
         pins lm [child, top] top @?=
           [Pin { label = "IN", polygon = LabeledPolygon (boundaryToPolygon expected) "CHILD", layer = pinLyr }]
+    ]
+
+  , testGroup "pinsByInstance"
+    [ testCase "a root Cell's own Pins group under its bare name; two SREF placements of the same Cell group separately" $ do
+        let pinLyr = Layer { index = 67, kind = 16 }
+            lblLyr = Layer { index = 67, kind = 5 }
+            lm = LayerMap
+              { layers = [layerEntry "li1.pin" 67 16, layerEntry "li1.label" 67 5]
+              , directConnections = []
+              , crossConnections = []
+              }
+            childPinB = boundaryOn pinLyr 0 0 10 10
+            childLbl  = textAt lblLyr 5 5 "OUT"
+            child     = cellWith "CHILD" [childPinB] [childLbl] []
+            topPinB   = boundaryOn pinLyr 0 0 10 10
+            topLbl    = textAt lblLyr 5 5 "TOP_PIN"
+            top = cellWith "TOP" [topPinB] [topLbl] [srefAt "CHILD" 100 200, srefAt "CHILD" 500 600]
+            result = pinsByInstance lm [child, top] top
+            pinAt dx dy = Pin
+              { label   = "OUT"
+              , polygon = LabeledPolygon (boundaryToPolygon (boundaryOn pinLyr dx dy (dx + 10) (dy + 10))) "CHILD"
+              , layer   = pinLyr
+              }
+        Map.keysSet result @?= Set.fromList ["TOP", "CHILD@(100,200)", "CHILD@(500,600)"]
+        Map.lookup "TOP" result @?=
+          Just [Pin { label = "TOP_PIN", polygon = LabeledPolygon (boundaryToPolygon topPinB) "TOP", layer = pinLyr }]
+        Map.lookup "CHILD@(100,200)" result @?= Just [pinAt 100 200]
+        Map.lookup "CHILD@(500,600)" result @?= Just [pinAt 500 600]
     ]
 
   , testGroup "connectivity"
