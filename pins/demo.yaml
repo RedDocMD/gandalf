@@ -1,0 +1,203 @@
+"adder_demo":
+  type: "top"
+  pins:
+    - name: "A"
+      layer: "met3.pin"
+    - name: "B"
+      layer: "met3.pin"
+    - name: "S"
+      layer: "met3.pin"
+    - name: "clk"
+      layer: "met3.pin"
+    - name: "en"
+      layer: "met3.pin"
+    - name: "rst_n"
+      layer: "met3.pin"
+
+"sky130_fd_sc_hd__a21bo_2":
+  type: "2-input AND into first input of 2-input OR, 2nd input inverted"
+  pins:
+    - name: "A1"
+      layer: "li1.pin"
+    - name: "A2"
+      layer: "li1.pin"
+    - name: "B1_N"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__a21boi_2":
+  type: "2-input AND into first input of 2-input NOR, 2nd input inverted"
+  pins:
+    - name: "A1"
+      layer: "li1.pin"
+    - name: "A2"
+      layer: "li1.pin"
+    - name: "B1_N"
+      layer: "li1.pin"
+    - name: "Y"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__a21o_2":
+  type: "2-input AND into first input of 2-input OR"
+  pins:
+    - name: "A1"
+      layer: "li1.pin"
+    - name: "A2"
+      layer: "li1.pin"
+    - name: "B1"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__a31o_2":
+  type: "3-input AND into first input of 2-input OR"
+  pins:
+    - name: "A1"
+      layer: "li1.pin"
+    - name: "A2"
+      layer: "li1.pin"
+    - name: "A3"
+      layer: "li1.pin"
+    - name: "B1"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__and2_2":
+  type: "2-input AND"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "B"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__and3_2":
+  type: "3-input AND"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "B"
+      layer: "li1.pin"
+    - name: "C"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__and4bb_2":
+  type: "4-input AND, first two inputs inverted"
+  pins:
+    - name: "A_N"
+      layer: "li1.pin"
+    - name: "B_N"
+      layer: "li1.pin"
+    - name: "C"
+      layer: "li1.pin"
+    - name: "D"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__clkbuf_16":
+  type: "Clock tree buffer"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__decap_3":
+  type: "Decoupling capacitance filler"
+  pins: []
+
+"sky130_fd_sc_hd__dfrtp_2":
+  type: "Delay flop, inverted reset, single output"
+  pins:
+    - name: "CLK"
+      layer: "li1.pin"
+    - name: "D"
+      layer: "li1.pin"
+    - name: "Q"
+      layer: "li1.pin"
+    - name: "RESET_B"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__mux2_1":
+  type: "2-input multiplexer"
+  pins:
+    - name: "A0"
+      layer: "li1.pin"
+    - name: "A1"
+      layer: "li1.pin"
+    - name: "S"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__nand2_2":
+  type: "2-input NAND"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "B"
+      layer: "li1.pin"
+    - name: "Y"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__nor2_2":
+  type: "2-input NOR"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "B"
+      layer: "li1.pin"
+    - name: "Y"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__o21bai_2":
+  type: "2-input OR into first input of 2-input NAND, 2nd input inverted"
+  pins:
+    - name: "A1"
+      layer: "li1.pin"
+    - name: "A2"
+      layer: "li1.pin"
+    - name: "B1_N"
+      layer: "li1.pin"
+    - name: "Y"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__or2_2":
+  type: "2-input OR"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "B"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__tapvpwrvgnd_1":
+  type: "Substrate and well tap cell"
+  pins: []
+
+"sky130_fd_sc_hd__xnor2_2":
+  type: "2-input exclusive NOR"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "B"
+      layer: "li1.pin"
+    - name: "Y"
+      layer: "li1.pin"
+
+"sky130_fd_sc_hd__xor2_2":
+  type: "2-input exclusive OR"
+  pins:
+    - name: "A"
+      layer: "li1.pin"
+    - name: "B"
+      layer: "li1.pin"
+    - name: "X"
+      layer: "li1.pin"

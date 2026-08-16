@@ -1,0 +1,657 @@
+puzzle:
+  I  layer=met3.pin (70, 16)
+  O[0]  layer=met3.pin (70, 16)
+  O[1]  layer=met3.pin (70, 16)
+  O[2]  layer=met3.pin (70, 16)
+  O[3]  layer=met3.pin (70, 16)
+  O[4]  layer=met3.pin (70, 16)
+  O[5]  layer=met3.pin (70, 16)
+  O[6]  layer=met3.pin (70, 16)
+  O[7]  layer=met3.pin (70, 16)
+  VGND  layer=met4.pin (71, 16)
+  VGND  layer=met5.pin (72, 16)
+  VPWR  layer=met4.pin (71, 16)
+  VPWR  layer=met5.pin (72, 16)
+  clk  layer=met3.pin (70, 16)
+  enable  layer=met3.pin (70, 16)
+  rst_n  layer=met3.pin (70, 16)
+  success  layer=met3.pin (70, 16)
+
+sky130_fd_sc_hd__a2111oi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  D1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a211o_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a211oi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a21bo_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a21boi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a21o_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a21oi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a221o_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=li1.pin (67, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a221oi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a22o_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a22oi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=li1.pin (67, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a311o_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a31o_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a31oi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a32o_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__a41oi_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  A4  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__and2_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__and2b_2:
+  A_N  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__and3_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__and3b_2:
+  A_N  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__and4_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__and4b_2:
+  A_N  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__and4bb_2:
+  A_N  layer=li1.pin (67, 16)
+  B_N  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__buf_2:
+  A  layer=li1.pin (67, 16)
+  VGND  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=li1.pin (67, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__clkbuf_16:
+  A  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__clkbuf_4:
+  A  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__clkbuf_8:
+  A  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__conb_1:
+  HI  layer=li1.pin (67, 16)
+  LO  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+
+sky130_fd_sc_hd__decap_3:
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+
+sky130_fd_sc_hd__dfrtp_2:
+  CLK  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  Q  layer=li1.pin (67, 16)
+  RESET_B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+
+sky130_fd_sc_hd__dfstp_2:
+  CLK  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  Q  layer=li1.pin (67, 16)
+  SET_B  layer=li1.pin (67, 16)
+  VGND  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=li1.pin (67, 16)
+  VPWR  layer=met1.pin (68, 16)
+
+sky130_fd_sc_hd__dfxtp_2:
+  CLK  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  Q  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+
+sky130_fd_sc_hd__diode_2:
+  DIODE  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+
+sky130_fd_sc_hd__inv_2:
+  A  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__mux2_1:
+  A0  layer=li1.pin (67, 16)
+  A1  layer=li1.pin (67, 16)
+  S  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nand2_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nand2b_2:
+  A_N  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nand3_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nand3b_2:
+  A_N  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nand4_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nor2_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nor3_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nor3b_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nor4_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__nor4b_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o211a_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o211ai_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o21a_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o21ai_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o21ba_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o21bai_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o221a_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o22a_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o22ai_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o2bb2a_2:
+  A1_N  layer=li1.pin (67, 16)
+  A2_N  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o311a_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  C1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o31a_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o31ai_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o32a_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__o32ai_2:
+  A1  layer=li1.pin (67, 16)
+  A2  layer=li1.pin (67, 16)
+  A3  layer=li1.pin (67, 16)
+  B1  layer=li1.pin (67, 16)
+  B2  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__or2_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__or3_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__or3b_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__or4_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__or4b_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C  layer=li1.pin (67, 16)
+  D_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__or4bb_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  C_N  layer=li1.pin (67, 16)
+  D_N  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__tapvpwrvgnd_1:
+  VGND  layer=met1.pin (68, 16)
+  VPWR  layer=met1.pin (68, 16)
+
+sky130_fd_sc_hd__xnor2_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  Y  layer=li1.pin (67, 16)
+
+sky130_fd_sc_hd__xor2_2:
+  A  layer=li1.pin (67, 16)
+  B  layer=li1.pin (67, 16)
+  VGND  layer=met1.pin (68, 16)
+  VPB  layer=nwell.pin (64, 16)
+  VPWR  layer=met1.pin (68, 16)
+  X  layer=li1.pin (67, 16)
+
