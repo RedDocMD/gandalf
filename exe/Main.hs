@@ -9,6 +9,8 @@ import qualified Data.Map.Lazy              as MapLazy
 import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (catMaybes)
 import qualified Data.Set                   as Set
+import           Geom                       (Polygon, boundIntersections,
+                                              boundaryToPolygon, pathToPolygon)
 import           Options.Applicative
 import           Parse                      (GdsPresentationFlags (GdsPresentationFlags),
                                               GdsRecord, GdsRecordT,
@@ -21,13 +23,18 @@ import           Structure                  (Boundary (Boundary),
                                               TextDescription (TextDescription),
                                               parseCells)
 
-data Command = Dump FilePath (Maybe String) | Elstr FilePath | Polycount FilePath String Int Int
+data Command
+  = Dump FilePath (Maybe String)
+  | Elstr FilePath
+  | Polycount FilePath String Int Int
+  | Intersections FilePath String Int Int Int Int
 
 commandParser :: Parser Command
 commandParser = subparser
   ( command "dump" (info (dumpParser <**> helper) (progDesc "Parse a GDS file and print its cells"))
  <> command "elstr" (info (elstrParser <**> helper) (progDesc "Summarize the unique sets of sub-units found within each hierarchical GDS unit"))
- <> command "polycount" (info (polycountParser <**> helper) (progDesc "Count boundary and path elements on a given layer/kind within a cell, including elements pulled in via SREF")) )
+ <> command "polycount" (info (polycountParser <**> helper) (progDesc "Count boundary and path elements on a given layer/kind within a cell, including elements pulled in via SREF"))
+ <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle intersections among the boundary and path elements on two layer/kind pairs (within each layer and across both) in a cell, including elements pulled in via SREF")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -49,6 +56,15 @@ polycountParser = Polycount
   <*> argument auto (metavar "LAYER" <> help "Layer index to match")
   <*> argument auto (metavar "KIND" <> help "Layer kind (datatype) to match")
 
+intersectionsParser :: Parser Command
+intersectionsParser = Intersections
+  <$> fileArgument
+  <*> argument str (metavar "CELL" <> help "Name of the cell to find intersections in")
+  <*> argument auto (metavar "LAYER1" <> help "First layer index")
+  <*> argument auto (metavar "KIND1" <> help "First layer kind (datatype)")
+  <*> argument auto (metavar "LAYER2" <> help "Second layer index")
+  <*> argument auto (metavar "KIND2" <> help "Second layer kind (datatype)")
+
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
 
@@ -56,9 +72,10 @@ main :: IO ()
 main = do
   cmd <- execParser opts
   case cmd of
-    Dump path cellName          -> runDump path cellName
-    Elstr path                  -> runElstr path
-    Polycount path cellName l k -> runPolycount path cellName l k
+    Dump path cellName                      -> runDump path cellName
+    Elstr path                              -> runElstr path
+    Polycount path cellName l k             -> runPolycount path cellName l k
+    Intersections path cellName l1 k1 l2 k2 -> runIntersections path cellName l1 k1 l2 k2
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -227,6 +244,35 @@ polycounts matches cells = counts
 
 matchesLayer :: Int -> Int -> Layer -> Bool
 matchesLayer wantIdx wantKind (Layer li lk) = li == wantIdx && lk == wantKind
+
+runIntersections :: FilePath -> String -> Int -> Int -> Int -> Int -> IO ()
+runIntersections path cellName l1Idx l1Kind l2Idx l2Kind = do
+  contents <- BS.readFile path
+  let cells   = parseCells (buildForest (parseAllRecords contents))
+      shapes1 = layerPolygons (matchesLayer l1Idx l1Kind) cells
+      shapes2 = layerPolygons (matchesLayer l2Idx l2Kind) cells
+  case (Map.lookup cellName shapes1, Map.lookup cellName shapes2) of
+    (Just ps1, Just ps2) -> mapM_ print
+      [ length ps1
+      , length ps2
+      , length (boundIntersections (ps1 ++ ps2))
+      ]
+    _ -> error ("intersections: no such cell " ++ show cellName)
+
+-- | The Polygons of every boundary and path on the matching layers for
+-- each cell, including elements pulled in transitively through SREFs.
+-- Built by the same knot-tying technique as 'polycounts' - see its comment
+-- for why Data.Map.Lazy is required here. As with 'polycounts', elements
+-- from referenced cells are gathered using their own local coordinates,
+-- without applying the SREF's translation/rotation/mirroring.
+layerPolygons :: (Layer -> Bool) -> [Cell] -> Map.Map String [Polygon]
+layerPolygons matches cells = shapes
+  where
+    shapes = MapLazy.fromList [ (nm, cellShapes c) | c@(Cell nm _ _ _ _) <- cells ]
+    cellShapes (Cell _ bnds paths _ refs) =
+      map boundaryToPolygon (filter (\(Boundary lyr _) -> matches lyr) bnds)
+      ++ map pathToPolygon (filter (\(Path lyr _ _ _ _) -> matches lyr) paths)
+      ++ concat [ MapLazy.findWithDefault [] refNm shapes | CellRef refNm _ _ _ <- refs ]
 
 parseAllRecords :: BS.ByteString -> [GdsRecordT]
 parseAllRecords = go
