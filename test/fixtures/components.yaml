@@ -1,0 +1,21 @@
+inv1:
+  type: inverter
+  pins:
+    - name: A
+      layer: li1
+    - name: "Y"
+      layer: li1
+    - name: VPWR
+      layer: met1
+    - name: VGND
+      layer: met1
+
+nand2_1:
+  type: nand2
+  pins:
+    - name: A
+      layer: li1
+    - name: B
+      layer: li1
+    - name: "Y"
+      layer: li1

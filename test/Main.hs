@@ -10,6 +10,8 @@ import qualified Data.Set          as Set
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
+import qualified Component
+import           Component         (readComponentList)
 import           Geom              (Polygon, Rectangle (..),
                                     RectangleBounded (..), boundIntersections,
                                     boundaryToPolygon, polygonIntersection,
@@ -92,7 +94,7 @@ assertIntersectionIs a b expected = case polygonIntersection a b of
     (sameComponents expected actual)
 
 main :: IO ()
-main = defaultMain $ testGroup "gandalf" [geomTests, relationshipTests]
+main = defaultMain $ testGroup "gandalf" [geomTests, relationshipTests, componentTests]
 
 geomTests :: TestTree
 geomTests = testGroup "Geom"
@@ -497,4 +499,32 @@ relationshipTests = testGroup "Relationship"
         assertBool "disjoint overlapping pairs get different component ids"
           (Map.lookup lpA comps /= Map.lookup lpC comps)
     ]
+  ]
+
+-- === Component ==============================================================
+
+componentTests :: TestTree
+componentTests = testGroup "Component"
+  [ testCase "readComponentList parses a component-name-keyed YAML file" $ do
+      result <- readComponentList "test/fixtures/components.yaml"
+      let expectedInv1 = Component.Component
+            { Component.componentType = "inverter"
+            , Component.pins =
+                [ Component.Pin { Component.name = "A", Component.layer = "li1" }
+                , Component.Pin { Component.name = "Y", Component.layer = "li1" }
+                , Component.Pin { Component.name = "VPWR", Component.layer = "met1" }
+                , Component.Pin { Component.name = "VGND", Component.layer = "met1" }
+                ]
+            }
+          expectedNand2 = Component.Component
+            { Component.componentType = "nand2"
+            , Component.pins =
+                [ Component.Pin { Component.name = "A", Component.layer = "li1" }
+                , Component.Pin { Component.name = "B", Component.layer = "li1" }
+                , Component.Pin { Component.name = "Y", Component.layer = "li1" }
+                ]
+            }
+      Map.keysSet result @?= Set.fromList ["inv1", "nand2_1"]
+      Map.lookup "inv1" result @?= Just expectedInv1
+      Map.lookup "nand2_1" result @?= Just expectedNand2
   ]
