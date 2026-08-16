@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NoFieldSelectors      #-}
 {-# LANGUAGE OverloadedRecordDot   #-}
@@ -10,12 +11,16 @@ module Geom
   , boundIntersections
   , boundaryToPolygon
   , pathToPolygon
+  , polygonIntersection
+  , samePolygon
   ) where
 
 import qualified Data.DList              as DL
 import           Data.Foldable1          (Foldable1, foldlMap1')
 import qualified Data.IntervalMap.Strict as IM
 import qualified Data.List.NonEmpty      as NE
+import qualified Data.Map.Strict         as Map
+import qualified Data.Set                as Set
 import           Structure               (Boundary (..), Coordinate (..),
                                            Path (..), PathKind (..))
 
@@ -212,3 +217,271 @@ runSweepLine evs = evalState runSweepLineImpl initState
         Nothing -> do
           st <- get
           return $ DL.toList st.intersections
+
+-- === Rectilinear polygon intersection =====================================
+
+-- | An (x, y) pair used internally by the sweep below. Kept separate from
+-- 'Coordinate' (which has no 'Ord' instance) so this algorithm's internals
+-- don't force a spatially-meaningless derived order onto the public
+-- GDS-domain type; conversion happens only at the two boundaries.
+type Point = (Int, Int)
+
+pointToCoord :: Point -> Coordinate
+pointToCoord (px, py) = Coordinate { x = px, y = py }
+
+-- | A vertical edge of a rectilinear polygon, with vYLo < vYHi.
+data VerticalEdge = VerticalEdge
+  { vX   :: !Int
+  , vYLo :: !Int
+  , vYHi :: !Int
+  }
+  deriving (Show, Eq)
+
+-- | Extracts the vertical edges of a rectilinear polygon's ring. Horizontal
+-- edges are dropped - the sweep below only needs verticals, since a
+-- rectilinear polygon's y cross-section only changes at those x's.
+verticalEdges :: Polygon -> [VerticalEdge]
+verticalEdges (Polygon coords) = concatMap classify (zip cs (NE.tail coords))
+  where
+    cs = toList coords
+    classify :: (Coordinate, Coordinate) -> [VerticalEdge]
+    classify (a, b)
+      | a.x == b.x && a.y == b.y =
+          geomError "polygonIntersection: degenerate zero-length edge"
+      | a.x == b.x =
+          [VerticalEdge { vX = a.x, vYLo = min a.y b.y, vYHi = max a.y b.y }]
+      | a.y == b.y = []
+      | otherwise  = geomError "polygonIntersection: non-rectilinear edge"
+
+-- | Groups vertical edges by their x coordinate, for slab-by-slab lookup
+-- during the sweep.
+edgesByX :: [VerticalEdge] -> Map.Map Int [VerticalEdge]
+edgesByX = Map.fromListWith (++) . map (\e -> (e.vX, [e]))
+
+-- | A polygon's ray-casting parity state at the sweep's current x: 'flips'
+-- is the set of y coordinates where inside/outside parity toggles - XORing
+-- a vertical edge's [yLo,yHi) range into the running parity is exactly
+-- toggling membership of its two endpoints. 'intervals' is the same state
+-- unpacked into the current maximal inside-y-ranges, by pairing up the
+-- sorted flip points; only recomputed when 'flips' actually changes.
+data PolySweep = PolySweep
+  { flips     :: !(Set.Set Int)
+  , intervals :: ![(Int, Int)]
+  }
+
+emptySweep :: PolySweep
+emptySweep = PolySweep { flips = Set.empty, intervals = [] }
+
+toggleY :: Set.Set Int -> Int -> Set.Set Int
+toggleY s y
+  | Set.member y s = Set.delete y s
+  | otherwise      = Set.insert y s
+
+pairUp :: [Int] -> [(Int, Int)]
+pairUp (a : b : rest) = (a, b) : pairUp rest
+pairUp _              = []
+
+applyEdgesAt :: PolySweep -> [VerticalEdge] -> PolySweep
+applyEdgesAt sw []    = sw
+applyEdgesAt sw edges = PolySweep { flips = flips', intervals = pairUp (Set.toAscList flips') }
+  where
+    flips' = foldl' (\s e -> toggleY (toggleY s e.vYLo) e.vYHi) sw.flips edges
+
+-- | Intersects two sorted, disjoint interval lists, keeping only overlaps
+-- with positive width - a zero-width touch does not count as a true
+-- intersection (see 'polygonIntersection').
+twoPointerIntersect :: [(Int, Int)] -> [(Int, Int)] -> [(Int, Int)]
+twoPointerIntersect = go
+  where
+    go [] _  = []
+    go _  [] = []
+    go aas@((aLo, aHi) : as) bbs@((bLo, bHi) : bs)
+      | aHi < bHi = overlap ++ go as bbs
+      | otherwise = overlap ++ go aas bs
+      where
+        lo = max aLo bLo
+        hi = min aHi bHi
+        overlap = [(lo, hi) | lo < hi]
+
+-- | Subtracts sorted, disjoint interval list b from sorted, disjoint
+-- interval list a, returning the sorted, disjoint remainder.
+subtractIntervals :: [(Int, Int)] -> [(Int, Int)] -> [(Int, Int)]
+subtractIntervals []  _ = []
+subtractIntervals xs [] = xs
+subtractIntervals aas@((aLo, aHi) : as) bbs@((bLo, bHi) : bs)
+  | aHi <= bLo = (aLo, aHi) : subtractIntervals as bbs
+  | bHi <= aLo = subtractIntervals aas bs
+  | otherwise  = leftPart ++ rest
+  where
+    leftPart = [(aLo, bLo) | aLo < bLo]
+    rest
+      | aHi > bHi = subtractIntervals ((bHi, aHi) : as) bs
+      | otherwise = subtractIntervals as bbs
+
+insertEdge :: Point -> Point -> Map.Map Point Point -> Map.Map Point Point
+insertEdge from to = Map.insertWith
+  (\_ _ -> geomError "polygonIntersection: malformed boundary (vertex has multiple outgoing edges)")
+  from
+  to
+
+-- | Emits the vertical boundary edges at x, from the symmetric difference
+-- between the intersection's y-coverage just left of x ('prevSlab') and
+-- just right of it ('thisSlab'). A range present only on the left means the
+-- region ends here (a right edge, drawn upward, interior to its west); a
+-- range present only on the right means the region starts here (a left
+-- edge, drawn downward, interior to its east) - the convention for a
+-- counter-clockwise-oriented boundary (interior always on an edge's left).
+addSeamEdges :: Int -> [(Int, Int)] -> [(Int, Int)] -> Map.Map Point Point -> Map.Map Point Point
+addSeamEdges x prevSlab thisSlab adj0 =
+  foldl' addDown (foldl' addUp adj0 ending) starting
+  where
+    ending   = subtractIntervals prevSlab thisSlab
+    starting = subtractIntervals thisSlab prevSlab
+    addUp   adj (p, q) = insertEdge (x, p) (x, q) adj
+    addDown adj (p, q) = insertEdge (x, q) (x, p) adj
+
+-- | Emits the horizontal boundary edges of the intersection's coverage
+-- across the slab (x, xNext): one bottom (rightward) and one top (leftward)
+-- edge per inside y-interval, the counter-clockwise convention for a
+-- rectangle's bottom/top sides.
+addHorizontalEdges :: Int -> Int -> [(Int, Int)] -> Map.Map Point Point -> Map.Map Point Point
+addHorizontalEdges x xNext slab adj0 = foldl' addPair adj0 slab
+  where
+    addPair adj (yLo, yHi) =
+      insertEdge (xNext, yHi) (x, yHi) (insertEdge (x, yLo) (xNext, yLo) adj)
+
+data SweepAcc = SweepAcc
+  { accA         :: !PolySweep
+  , accB         :: !PolySweep
+  , accPrevSlab  :: ![(Int, Int)]
+  , accAdjacency :: !(Map.Map Point Point)
+  }
+
+-- | Pairs each element of a list with the next one, if any.
+withNext :: [a] -> [(a, Maybe a)]
+withNext []                 = []
+withNext [x]                = [(x, Nothing)]
+withNext (x : rest@(y : _)) = (x, Just y) : withNext rest
+
+-- | Sweeps left to right across the union of both polygons' vertical-edge x
+-- coordinates, building the adjacency map of the intersection region's
+-- boundary: each key is a boundary vertex, its value the next vertex along
+-- the boundary in a consistent (counter-clockwise) direction.
+runXSweep :: Polygon -> Polygon -> Map.Map Point Point
+runXSweep polyA polyB = (foldl' step initAcc (withNext xs)).accAdjacency
+  where
+    edgesA = edgesByX (verticalEdges polyA)
+    edgesB = edgesByX (verticalEdges polyB)
+    xs = Set.toAscList (Set.union (Map.keysSet edgesA) (Map.keysSet edgesB))
+    initAcc = SweepAcc
+      { accA = emptySweep
+      , accB = emptySweep
+      , accPrevSlab = []
+      , accAdjacency = Map.empty
+      }
+    step :: SweepAcc -> (Int, Maybe Int) -> SweepAcc
+    step !acc (x, mNext) = SweepAcc
+      { accA = sweepA'
+      , accB = sweepB'
+      , accPrevSlab = thisSlab
+      , accAdjacency = adjacency'
+      }
+      where
+        sweepA'    = applyEdgesAt acc.accA (Map.findWithDefault [] x edgesA)
+        sweepB'    = applyEdgesAt acc.accB (Map.findWithDefault [] x edgesB)
+        thisSlab   = twoPointerIntersect sweepA'.intervals sweepB'.intervals
+        withSeam   = addSeamEdges x acc.accPrevSlab thisSlab acc.accAdjacency
+        adjacency' = case mNext of
+          Just xNext -> addHorizontalEdges x xNext thisSlab withSeam
+          Nothing    -> withSeam
+
+-- | Traces the boundary adjacency map into closed loops, consuming each
+-- vertex exactly once. Each loop is either an outer boundary (traversed
+-- counter-clockwise, by construction) or - if the intersection encloses a
+-- gap neither polygon covers - a hole (clockwise); see 'polygonIntersection'.
+traceLoops :: Map.Map Point Point -> [[Point]]
+traceLoops adj
+  | Map.null adj = []
+  | otherwise    = loop : traceLoops rest
+  where
+    (start, _)   = Map.findMin adj
+    (loop, rest) = walk start start adj []
+
+    walk :: Point -> Point -> Map.Map Point Point -> [Point] -> ([Point], Map.Map Point Point)
+    walk start' cur adj' acc = case Map.lookup cur adj' of
+      Nothing   -> geomError "polygonIntersection: boundary failed to close"
+      Just next ->
+        let !adj'' = Map.delete cur adj'
+            !acc'  = cur : acc
+        in if next == start'
+             then (reverse acc', adj'')
+             else walk start' next adj'' acc'
+
+-- | Cyclically rotates a list left by n elements.
+rotate :: Int -> [a] -> [a]
+rotate n xs = take len (drop (n `mod` len) (cycle xs))
+  where
+    len = length xs
+
+-- | Twice the signed (shoelace) area of a closed loop of vertices: positive
+-- for a counter-clockwise loop, negative for clockwise.
+signedArea2x :: [Point] -> Int
+signedArea2x pts = sum (zipWith cross pts (rotate 1 pts))
+  where
+    cross (x1, y1) (x2, y2) = x1 * y2 - x2 * y1
+
+-- | Drops vertices that sit in the middle of a straight run (incoming and
+-- outgoing edge directions match), left behind at slab boundaries where an
+-- intersection's y-coverage doesn't actually change.
+simplifyLoop :: [Point] -> [Point]
+simplifyLoop pts =
+  [ p | (prev, p, next) <- zip3 (rotate (-1) pts) pts (rotate 1 pts)
+      , direction prev p /= direction p next
+  ]
+  where
+    direction (ax, ay) (bx, by) = (signum (bx - ax), signum (by - ay))
+
+pointsToPolygon :: [Point] -> Polygon
+pointsToPolygon []       = geomError "polygonIntersection: empty loop"
+pointsToPolygon (p : ps) = Polygon (c :| (map pointToCoord ps ++ [c]))
+  where
+    c = pointToCoord p
+
+-- | The true geometric intersection of two rectilinear polygons, as one
+-- simple polygon per connected component of the overlap (commonly a single
+-- element, but the intersection of two simple rectilinear polygons can
+-- genuinely split into several disjoint pieces). Returns 'Nothing' if the
+-- polygons don't actually overlap - a zero-area touch counts as no overlap.
+--
+-- Errors if a component of the intersection encloses a hole: even a list
+-- of polygons can't represent that (each element is a single ring), and
+-- while it can't arise from either input alone (both are simple, hole-free
+-- rings), it can arise from their intersection - e.g. two C/bracket-shaped
+-- rectilinear polygons overlapping to enclose a gap neither one covers.
+-- This is expected to be rare for real GDS shapes; failing loudly here
+-- matches 'pathToPolygon''s handling of Round path caps - another case
+-- this module refuses to approximate rather than silently getting wrong.
+--
+-- Assumes the two polygons' bounding boxes are already known to overlap;
+-- does not re-check that itself (see 'boundIntersections').
+polygonIntersection :: Polygon -> Polygon -> Maybe [Polygon]
+polygonIntersection polyA polyB = case traceLoops (runXSweep polyA polyB) of
+  []    -> Nothing
+  loops
+    | all ((> 0) . signedArea2x) loops -> Just (map (pointsToPolygon . simplifyLoop) loops)
+    | otherwise -> geomError "polygonIntersection: intersection encloses a hole, not representable"
+
+-- | True if two polygons trace the same cyclic boundary, regardless of
+-- starting vertex or traversal direction - neither is part of a Polygon's
+-- contract (in particular, 'polygonIntersection''s output), so this is the
+-- right notion of equality for comparing a computed polygon against an
+-- expected shape.
+samePolygon :: Polygon -> Polygon -> Bool
+samePolygon (Polygon a) (Polygon b) =
+  ringA `elem` rotations ringB || ringA `elem` rotations (reverse ringB)
+  where
+    ringA = NE.init a
+    ringB = NE.init b
+    rotations xs = take (length xs) (iterate rotateLeft1 xs)
+    rotateLeft1 []       = []
+    rotateLeft1 (y : ys) = ys ++ [y]
