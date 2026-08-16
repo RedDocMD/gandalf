@@ -4,21 +4,21 @@ import           AST                        (AST (..), astKind, buildForest,
                                               isCloser, isOpener)
 import qualified Data.Attoparsec.ByteString as DAP
 import qualified Data.ByteString            as BS
-import           Data.List                  (foldl', intercalate)
+import           Data.List                  (find, foldl', intercalate)
 import qualified Data.Map.Lazy              as MapLazy
 import qualified Data.Map.Strict            as Map
-import           Data.Maybe                 (catMaybes, fromMaybe)
+import           Data.Maybe                 (catMaybes)
 import qualified Data.Set                   as Set
-import           Geom                       (Polygon, Transform (..),
-                                              boundIntersections,
-                                              boundaryToPolygon, pathToPolygon,
+import           Geom                       (Polygon, boundIntersections,
                                               polygonIntersection,
-                                              polygonVertices, transformPolygon)
+                                              polygonVertices)
 import           Options.Applicative
 import           Parse                      (GdsPresentationFlags (GdsPresentationFlags),
                                               GdsRecord, GdsRecordT,
                                               GdsStransFlags (GdsStransFlags),
                                               parseGdsRecord)
+import           Relationship               (LabeledPolygon (LabeledPolygon),
+                                              layerPolygons)
 import           Structure                  (Boundary (Boundary),
                                               Cell (Cell), CellRef (CellRef),
                                               Coordinate (Coordinate),
@@ -258,12 +258,13 @@ matchesLayer wantIdx wantKind (Layer li lk) = li == wantIdx && lk == wantKind
 runIntersections :: FilePath -> String -> Int -> Int -> Int -> Int -> Maybe FilePath -> IO ()
 runIntersections path cellName l1Idx l1Kind l2Idx l2Kind outputSvg = do
   contents <- BS.readFile path
-  let cells   = parseCells (buildForest (parseAllRecords contents))
-      shapes1 = layerPolygons (matchesLayer l1Idx l1Kind) cells
-      shapes2 = layerPolygons (matchesLayer l2Idx l2Kind) cells
-  case (Map.lookup cellName shapes1, Map.lookup cellName shapes2) of
-    (Just ps1, Just ps2) -> do
-      let boxPairs = boundIntersections (ps1 ++ ps2)
+  let cells = parseCells (buildForest (parseAllRecords contents))
+  case find (\(Cell nm _ _ _ _) -> nm == cellName) cells of
+    Just root -> do
+      let grouped  = layerPolygons cells root
+          ps1      = layerPolygonsOn grouped l1Idx l1Kind
+          ps2      = layerPolygonsOn grouped l2Idx l2Kind
+          boxPairs = boundIntersections (ps1 ++ ps2)
           -- boundIntersections only guarantees the pairs' bounding rectangles
           -- overlap; polygonIntersection narrows that down to the pairs (and
           -- exact regions) that truly overlap. Each pair is only intersected
@@ -281,7 +282,13 @@ runIntersections path cellName l1Idx l1Kind l2Idx l2Kind outputSvg = do
         Just svgPath -> do
           writeFile svgPath (renderSvg cellName ps1 ps2 intersectionPolys)
           putStrLn ("SVG diagram written to " ++ svgPath)
-    _ -> error ("intersections: no such cell " ++ show cellName)
+    Nothing -> error ("intersections: no such cell " ++ show cellName)
+
+-- | The plain Polygons - parent labels dropped - on a given layer/kind of a
+-- Relationship.layerPolygons grouping.
+layerPolygonsOn :: Map.Map Layer [LabeledPolygon] -> Int -> Int -> [Polygon]
+layerPolygonsOn grouped idx kind =
+  [ p | LabeledPolygon p _ <- Map.findWithDefault [] (Layer idx kind) grouped ]
 
 -- | Renders label/count rows as a small aligned table, e.g.:
 --
@@ -398,44 +405,6 @@ escapeXml = concatMap esc
     esc '>' = "&gt;"
     esc '"' = "&quot;"
     esc c   = [c]
-
--- | The Polygons of every boundary and path on the matching layers for
--- each cell, expressed in that cell's own local coordinate system -
--- including elements pulled in transitively through SREFs, with each
--- SREF's translation/rotation/mirroring applied so referenced geometry
--- lands in the right place relative to the referencing cell. Built by the
--- same knot-tying technique as 'polycounts' - see its comment for why
--- Data.Map.Lazy is required here.
---
--- Composing transforms across multiple levels of nesting falls out for
--- free from this recursion: each level's SREF transform is applied to its
--- referenced cell's ALREADY fully-resolved (own-frame) shapes, so a cell's
--- entry in this map is always just a pure function of its own name - safe
--- to memoize regardless of how many places reference it, even if each does
--- so with a different transform.
-layerPolygons :: (Layer -> Bool) -> [Cell] -> Map.Map String [Polygon]
-layerPolygons matches cells = shapes
-  where
-    shapes = MapLazy.fromList [ (nm, cellShapes c) | c@(Cell nm _ _ _ _) <- cells ]
-    cellShapes (Cell _ bnds paths _ refs) =
-      map boundaryToPolygon (filter (\(Boundary lyr _) -> matches lyr) bnds)
-      ++ map pathToPolygon (filter (\(Path lyr _ _ _ _) -> matches lyr) paths)
-      ++ concat
-           [ map (transformPolygon (srefTransform ref)) (MapLazy.findWithDefault [] refNm shapes)
-           | ref@(CellRef refNm _ _ _) <- refs
-           ]
-
--- | The placement Geom.Transform an SREF's own translation/rotation/
--- mirroring describes, per GDS defaults: no STRANS record means no
--- reflection, and no ANGLE record means no rotation.
-srefTransform :: CellRef -> Transform
-srefTransform (CellRef _ crd trans ang) = Transform
-  { mirrorX  = maybe False stransMirrorX trans
-  , angleDeg = fromMaybe 0 ang
-  , offset   = crd
-  }
-  where
-    stransMirrorX (GdsStransFlags mx _ _) = mx
 
 parseAllRecords :: BS.ByteString -> [GdsRecordT]
 parseAllRecords = go

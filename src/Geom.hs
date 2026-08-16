@@ -15,6 +15,7 @@ module Geom
   , polygonVertices
   , samePolygon
   , Transform (..)
+  , transformCoordinate
   , transformPolygon
   ) where
 
@@ -37,7 +38,7 @@ geomError = error . toText
 -- the only ways to build one, so every Polygon traces back to a real GDS
 -- element.
 newtype Polygon = Polygon (NonEmpty Coordinate)
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 -- | The ordered ring of coordinates a Polygon traces, closing back to its
 -- start (first == last) - e.g. for rendering a Polygon outside this module.
@@ -359,10 +360,8 @@ subtractIntervals aas@((aLo, aHi) : as) bbs@((bLo, bHi) : bs)
       | otherwise = subtractIntervals as bbs
 
 insertEdge :: Point -> Point -> Map.Map Point Point -> Map.Map Point Point
-insertEdge from to = Map.insertWith
+insertEdge = Map.insertWith
   (\_ _ -> geomError "polygonIntersection: malformed boundary (vertex has multiple outgoing edges)")
-  from
-  to
 
 -- | Emits the vertical boundary edges at x, from the symmetric difference
 -- between the intersection's y-coverage just left of x ('prevSlab') and

@@ -9,12 +9,12 @@ import           Parse (GdsPresentationFlags, GdsRecord (..), GdsRecordT (..),
 data Layer = Layer
   { index :: Int
   , kind  :: Int
-  } deriving (Show)
+  } deriving (Show, Eq, Ord)
 
 data Coordinate = Coordinate
   { x :: Int
   , y :: Int
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Ord)
 
 data Boundary = Boundary
   { layer  :: Layer
