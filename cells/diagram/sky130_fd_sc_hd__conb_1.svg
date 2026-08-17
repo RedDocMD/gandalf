@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 160" width="380" height="160">
+<rect x="0" y="0" width="380" height="160" fill="white"/>
+<text x="10.0" y="24.0" font-family="monospace" font-size="13" text-anchor="start" font-weight="bold" fill="black">sky130_fd_sc_hd__conb_1</text>
+<text x="10.0" y="40.0" font-family="monospace" font-size="10" text-anchor="start" font-weight="normal" fill="#555555">Constant value, low, high outputs</text>
+<rect x="150" y="55" width="60" height="35" fill="white" stroke="black" stroke-width="2"/>
+<text x="180.0" y="78.0" font-family="monospace" font-size="14" text-anchor="middle" font-weight="normal" fill="black">1</text>
+<line x1="210.0" y1="72.5" x2="300.0" y2="72.5" stroke="black" stroke-width="2"/>
+<text x="308.0" y="76.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">HI</text>
+<rect x="150" y="105" width="60" height="35" fill="white" stroke="black" stroke-width="2"/>
+<text x="180.0" y="128.0" font-family="monospace" font-size="14" text-anchor="middle" font-weight="normal" fill="black">0</text>
+<line x1="210.0" y1="122.5" x2="300.0" y2="122.5" stroke="black" stroke-width="2"/>
+<text x="308.0" y="126.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">LO</text>
+</svg>

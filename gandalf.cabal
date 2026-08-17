@@ -24,7 +24,8 @@ library
         Geom,
         Relationship,
         LayerMap,
-        Component
+        Component,
+        Netlist
     -- other-modules:
     -- other-extensions:
     build-depends:

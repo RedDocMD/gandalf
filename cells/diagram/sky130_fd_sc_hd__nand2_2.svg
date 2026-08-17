@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 180" width="480" height="180">
+<rect x="0" y="0" width="480" height="180" fill="white"/>
+<text x="10.0" y="24.0" font-family="monospace" font-size="13" text-anchor="start" font-weight="bold" fill="black">sky130_fd_sc_hd__nand2_2</text>
+<text x="10.0" y="40.0" font-family="monospace" font-size="10" text-anchor="start" font-weight="normal" fill="#555555">2-input NAND</text>
+<line x1="40.0" y1="70.0" x2="180.0" y2="70.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="74.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A</text>
+<line x1="40.0" y1="110.0" x2="180.0" y2="110.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="114.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">B</text>
+<path d="M 180.0,50.0 L 220.0,50.0 A 40.0,40.0 0 0 1 220.0,130.0 L 180.0,130.0 Z" fill="white" stroke="black" stroke-width="2"/>
+<circle cx="265.0" cy="90.0" r="5" fill="white" stroke="black" stroke-width="2"/>
+<line x1="270.0" y1="90.0" x2="420.0" y2="90.0" stroke="black" stroke-width="2"/>
+<text x="428.0" y="94.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">Y</text>
+</svg>

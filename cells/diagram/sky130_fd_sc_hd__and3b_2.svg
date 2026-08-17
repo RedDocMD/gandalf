@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 220" width="480" height="220">
+<rect x="0" y="0" width="480" height="220" fill="white"/>
+<text x="10.0" y="24.0" font-family="monospace" font-size="13" text-anchor="start" font-weight="bold" fill="black">sky130_fd_sc_hd__and3b_2</text>
+<text x="10.0" y="40.0" font-family="monospace" font-size="10" text-anchor="start" font-weight="normal" fill="#555555">3-input AND, first input inverted</text>
+<line x1="40.0" y1="70.0" x2="170.0" y2="70.0" stroke="black" stroke-width="2"/>
+<circle cx="175.0" cy="70.0" r="5" fill="white" stroke="black" stroke-width="2"/>
+<text x="10.0" y="74.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A_N</text>
+<line x1="40.0" y1="110.0" x2="180.0" y2="110.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="114.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">B</text>
+<line x1="40.0" y1="150.0" x2="180.0" y2="150.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="154.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">C</text>
+<path d="M 180.0,50.0 L 200.0,50.0 A 60.0,60.0 0 0 1 200.0,170.0 L 180.0,170.0 Z" fill="white" stroke="black" stroke-width="2"/>
+<line x1="260.0" y1="110.0" x2="420.0" y2="110.0" stroke="black" stroke-width="2"/>
+<text x="428.0" y="114.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">X</text>
+</svg>

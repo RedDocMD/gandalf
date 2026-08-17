@@ -1,0 +1,5 @@
+module sky130_fd_sc_hd__diode_2 (
+    input DIODE
+);
+
+endmodule

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 260" width="620" height="260">
+<rect x="0" y="0" width="620" height="260" fill="white"/>
+<text x="10.0" y="24.0" font-family="monospace" font-size="13" text-anchor="start" font-weight="bold" fill="black">sky130_fd_sc_hd__a211o_2</text>
+<text x="10.0" y="40.0" font-family="monospace" font-size="10" text-anchor="start" font-weight="normal" fill="#555555">2-input AND into first input of 3-input OR</text>
+<line x1="40.0" y1="70.0" x2="190.0" y2="70.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="74.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A1</text>
+<line x1="40.0" y1="110.0" x2="190.0" y2="110.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="114.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A2</text>
+<path d="M 190.0,50.0 L 220.0,50.0 A 40.0,40.0 0 0 1 220.0,130.0 L 190.0,130.0 Z" fill="white" stroke="black" stroke-width="2"/>
+<line x1="260.0" y1="90.0" x2="400.0" y2="90.0" stroke="black" stroke-width="2"/>
+<line x1="40.0" y1="150.0" x2="400.0" y2="150.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="154.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">B1</text>
+<line x1="40.0" y1="190.0" x2="400.0" y2="190.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="194.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">C1</text>
+<path d="M 400.0,50.0 C 445.0,50.0 476.5,74.0 490.0,130.0 C 476.5,186.0 445.0,210.0 400.0,210.0 C 422.5,162.0 422.5,98.0 400.0,50.0 Z" fill="white" stroke="black" stroke-width="2"/>
+<line x1="490.0" y1="130.0" x2="560.0" y2="130.0" stroke="black" stroke-width="2"/>
+<text x="568.0" y="134.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">X</text>
+</svg>

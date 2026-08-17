@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" width="420" height="260">
+<rect x="0" y="0" width="420" height="260" fill="white"/>
+<text x="10.0" y="24.0" font-family="monospace" font-size="13" text-anchor="start" font-weight="bold" fill="black">sky130_fd_sc_hd__mux2_1</text>
+<text x="10.0" y="40.0" font-family="monospace" font-size="10" text-anchor="start" font-weight="normal" fill="#555555">2-input multiplexer</text>
+<path d="M 180.0,50.0 L 270.0,76.0 L 270.0,154.0 L 180.0,180.0 Z" fill="white" stroke="black" stroke-width="2"/>
+<line x1="40.0" y1="86.4" x2="180.0" y2="86.4" stroke="black" stroke-width="2"/>
+<text x="10.0" y="90.4" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A0</text>
+<line x1="40.0" y1="143.6" x2="180.0" y2="143.6" stroke="black" stroke-width="2"/>
+<text x="10.0" y="147.6" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A1</text>
+<line x1="225.0" y1="220.0" x2="225.0" y2="180.0" stroke="black" stroke-width="2"/>
+<text x="225.0" y="235.0" font-family="monospace" font-size="14" text-anchor="middle" font-weight="normal" fill="black">S</text>
+<line x1="270.0" y1="115.0" x2="360.0" y2="115.0" stroke="black" stroke-width="2"/>
+<text x="368.0" y="119.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">X</text>
+</svg>

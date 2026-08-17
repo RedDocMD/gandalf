@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 300" width="620" height="300">
+<rect x="0" y="0" width="620" height="300" fill="white"/>
+<text x="10.0" y="24.0" font-family="monospace" font-size="13" text-anchor="start" font-weight="bold" fill="black">sky130_fd_sc_hd__o311a_2</text>
+<text x="10.0" y="40.0" font-family="monospace" font-size="10" text-anchor="start" font-weight="normal" fill="#555555">3-input OR into 3-input AND</text>
+<line x1="40.0" y1="70.0" x2="190.0" y2="70.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="74.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A1</text>
+<line x1="40.0" y1="110.0" x2="190.0" y2="110.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="114.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A2</text>
+<line x1="40.0" y1="150.0" x2="190.0" y2="150.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="154.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">A3</text>
+<path d="M 190.0,50.0 C 225.0,50.0 249.5,68.0 260.0,110.0 C 249.5,152.0 225.0,170.0 190.0,170.0 C 207.5,134.0 207.5,86.0 190.0,50.0 Z" fill="white" stroke="black" stroke-width="2"/>
+<line x1="260.0" y1="110.0" x2="400.0" y2="110.0" stroke="black" stroke-width="2"/>
+<line x1="40.0" y1="190.0" x2="400.0" y2="190.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="194.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">B1</text>
+<line x1="40.0" y1="230.0" x2="400.0" y2="230.0" stroke="black" stroke-width="2"/>
+<text x="10.0" y="234.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">C1</text>
+<path d="M 400.0,50.0 L 390.0,50.0 A 100.0,100.0 0 0 1 390.0,250.0 L 400.0,250.0 Z" fill="white" stroke="black" stroke-width="2"/>
+<line x1="490.0" y1="150.0" x2="560.0" y2="150.0" stroke="black" stroke-width="2"/>
+<text x="568.0" y="154.0" font-family="monospace" font-size="14" text-anchor="start" font-weight="normal" fill="black">X</text>
+</svg>
