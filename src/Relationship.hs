@@ -17,8 +17,11 @@ module Relationship
   , LayerPolygon (..)
   , connectivity
   , connectedComponents
+  , netlist
   ) where
 
+import qualified Component
+import           Component       (ComponentList)
 import           Data.List       (isSuffixOf)
 import qualified Data.Map.Lazy   as MapLazy
 import qualified Data.Map.Strict as Map
@@ -361,3 +364,165 @@ pinsByInstance lm cells root =
          , Just child <- [Map.lookup ref.name cellByName]
          , (lbl, p) <- walk (instanceLabel ref) child
          ]
+
+-- | Every instance label reachable from a Cell (per 'pinsByInstance''s
+-- grouping) paired with the name of the Cell it's an instance of - the
+-- root Cell's own name for itself (its "type" is trivially itself), or an
+-- SREF's own 'name' field (the Cell it references) for every
+-- transitively reached instance. This is 'pinsByInstance''s own instance
+-- labeling, computed independently of any Pins, so a 'netlist' lookup can
+-- tell what a given instance label was placed *from* without re-deriving
+-- it from the label string.
+instanceTypes :: [Cell] -> Cell -> Map.Map String String
+instanceTypes cells root = Map.fromList (walk root.name root.name root)
+  where
+    cellByName :: Map.Map String Cell
+    cellByName = Map.fromList [ (c.name, c) | c <- cells ]
+
+    walk :: String -> String -> Cell -> [(String, String)]
+    walk selfLabel typeName c =
+      (selfLabel, typeName) : concat
+        [ walk (instanceLabel ref) ref.name child
+        | ref <- c.cellRef
+        , Just child <- [Map.lookup ref.name cellByName]
+        ]
+
+-- | The named-layer prefix (e.g. "li1") a Layer belongs to, per the
+-- LayerMap entry with exactly this (layer, datatype) pair - the same
+-- convention 'namedLayerPolygons' matches connectivity layer names
+-- against.
+layerPrefixName :: LayerMap -> Layer -> Maybe String
+layerPrefixName lm lyr = listToMaybe
+  [ takeWhile (/= '.') e.name | e <- lm.layers, e.layer == lyr.index, e.datatype == lyr.kind ]
+
+-- | The 'connectivity' graph node (per its adjacency list's keys) a Pin's
+-- own Polygon corresponds to, if its Layer belongs to some named layer -
+-- 'Nothing' for a Pin whose Layer isn't named at all in the LayerMap
+-- (shouldn't normally happen, since every ".pin" layer 'pins' matches
+-- against is itself a named LayerMap entry, sharing its GDS layer number
+-- with some other purpose under the same name).
+pinLayerPolygon :: LayerMap -> Pin -> Maybe LayerPolygon
+pinLayerPolygon lm p = (\nm -> LayerPolygon nm p.polygon) <$> layerPrefixName lm p.layer
+
+-- | Every ((component, pin), (component, pin)) connection reachable from
+-- a named pin on a Cell's own definition - "reachable" meaning: starting
+-- from that pin's own physically connected net (a maximal set of
+-- touching Polygons, per 'connectivity'), then, for every other declared
+-- pin also touching that net, fanning out to that pin's own component's
+-- *other* declared pins - without ever tracing a component's own internal
+-- wiring - to explore whatever nets *they* touch, and so on transitively.
+-- Every pair of declared pins sharing a single net becomes one
+-- connection; a net touching no declared pin, or only one, contributes
+-- none.
+--
+-- "Declared" means: the pin's owning instance's type has an entry in the
+-- given ComponentList, and the pin's own label is named among that
+-- entry's own pins - see 'declaredPins'. A Pin found geometrically (via
+-- 'pinsByInstance') but absent from its component's declared pin list -
+-- e.g. a power/ground pin like VPWR/VGND that a components-file entry
+-- doesn't bother naming - never counts as a netlist node at all: not as
+-- a connection endpoint, and not as somewhere to fan out from. This is
+-- why a components file is needed at all, on top of the LayerMap: it's
+-- what tells the search which SREF instances are opaque "components",
+-- and which of their pins are worth reporting, as opposed to plain
+-- unrecognized geometry that only contributes to net shapes.
+--
+-- Errors if 'outputPinName' isn't declared among root's own pins (root
+-- must itself have a ComponentList entry, matching its own Cell name -
+-- the same convention every other placed component follows).
+netlist :: LayerMap -> ComponentList -> [Cell] -> Cell -> String -> Set.Set ((String, String), (String, String))
+netlist lm compList cells root outputPinName = case startNode of
+  Nothing   -> error (toText ("netlist: no such declared pin " ++ show outputPinName ++ " on cell " ++ show root.name))
+  Just seed -> Set.fromList (go [seed] Set.empty [])
+  where
+    adj   = connectivity lm cells root
+    types = instanceTypes cells root
+
+    -- Every geometrically-found Pin (per 'pinsByInstance'), restricted to
+    -- just those actually named in their owning instance's own
+    -- components-file entry - a Pin whose instance has no ComponentList
+    -- entry at all (an unrecognized SREF) is dropped entirely, since
+    -- 'Map.findWithDefault' on a missing key already yields no pins.
+    declaredPins :: Map.Map String [Pin]
+    declaredPins = Map.mapWithKey (\instLbl -> filter ((`Set.member` declaredNames instLbl) . (.label)))
+                                   (pinsByInstance lm cells root)
+      where
+        declaredNames instLbl = case Map.lookup instLbl types >>= (`Map.lookup` compList) of
+          Nothing   -> Set.empty
+          Just comp -> Set.fromList [ p.name | p <- comp.pins ]
+
+    startNode :: Maybe LayerPolygon
+    startNode = do
+      p <- find (\pin -> pin.label == outputPinName) (Map.findWithDefault [] root.name declaredPins)
+      pinLayerPolygon lm p
+
+    -- Every declared pin's own connectivity-graph node, reverse-indexed
+    -- to the (instance label, Pin) it came from.
+    pinNode :: Map.Map LayerPolygon (String, Pin)
+    pinNode = Map.fromList
+      [ (lp, (instLbl, p))
+      | (instLbl, ps) <- Map.toList declaredPins
+      , p             <- ps
+      , Just lp        <- [pinLayerPolygon lm p]
+      ]
+
+    -- pinId is only ever applied to nodes drawn from 'netPins' below,
+    -- which are filtered to exactly the keys of 'pinNode' - so the lookup
+    -- always succeeds.
+    pinId :: LayerPolygon -> (String, String)
+    pinId n = (instLbl, p.label) where (instLbl, p) = pinNode Map.! n
+
+    siblingNodes :: String -> [LayerPolygon]
+    siblingNodes instLbl =
+      [ lp | p <- Map.findWithDefault [] instLbl declaredPins, Just lp <- [pinLayerPolygon lm p] ]
+
+    -- The full set of connectivity-graph nodes physically touching
+    -- 'start', found the same way 'connectedComponents' explores one
+    -- component - by DFS over 'adj', not stopping at pin nodes, so a net
+    -- touching several pins is fully traced.
+    netOf :: LayerPolygon -> [LayerPolygon]
+    netOf start = walk [start] Set.empty
+      where
+        walk [] seen = Set.toList seen
+        walk (n : ns) seen
+          | n `Set.member` seen = walk ns seen
+          | otherwise = walk (Map.findWithDefault [] n adj ++ ns) (Set.insert n seen)
+
+    canon :: ((String, String), (String, String)) -> ((String, String), (String, String))
+    canon (a, b) | a <= b    = (a, b)
+                 | otherwise = (b, a)
+
+    -- Explores a worklist of pin nodes to seed net traces from: for each
+    -- unvisited seed, traces its whole net, records every pair of
+    -- declared pins found on that net, then - per 'netlist''s own
+    -- documentation - adds every *other*, not-yet-searched declared pin
+    -- of any component touched by the net as a further seed (an
+    -- undeclared or unrecognized instance's pins are never among
+    -- 'declaredPins' in the first place, so 'siblingNodes' naturally
+    -- yields nothing for one), rather than ever continuing past a pin
+    -- node via 'adj' directly.
+    go :: [LayerPolygon] -> Set.Set LayerPolygon -> [((String, String), (String, String))]
+       -> [((String, String), (String, String))]
+    go [] _ acc = acc
+    go (seedNode : rest) seen acc
+      | seedNode `Set.member` seen = go rest seen acc
+      | otherwise = go (newSeeds ++ rest) (Set.union seen (Set.fromList netPins)) (pairs ++ acc)
+      where
+        netNodes = netOf seedNode
+        netPins  = filter (`Map.member` pinNode) netNodes
+        -- A single named pin can be drawn as several disjoint shapes (so
+        -- more than one node in 'netPins' can share the very same
+        -- pinId) - excluding same-pinId pairs keeps a pin from ever
+        -- appearing "connected" to itself.
+        pairs    =
+          [ canon (pinId a, pinId b)
+          | (a : bs) <- tails netPins
+          , b        <- bs
+          , pinId a /= pinId b
+          ]
+        newSeeds =
+          [ compNode
+          | n                <- netPins
+          , Just (instLbl, _) <- [Map.lookup n pinNode]
+          , compNode         <- siblingNodes instLbl
+          ]

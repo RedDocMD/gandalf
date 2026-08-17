@@ -2,6 +2,7 @@ module Main where
 
 import           AST                        (AST (..), astKind, buildForest,
                                               isCloser, isOpener)
+import           Component                  (readComponentList)
 import qualified Data.Attoparsec.ByteString as DAP
 import qualified Data.ByteString            as BS
 import           Data.List                  (find, foldl', intercalate,
@@ -25,7 +26,7 @@ import           Relationship               (LabeledPolygon (LabeledPolygon),
                                               LayerPolygon (LayerPolygon),
                                               Pin (Pin), connectedComponents,
                                               connectivity, layerPolygons,
-                                              pins, pinsByInstance)
+                                              netlist, pins, pinsByInstance)
 import           Structure                  (Boundary (Boundary),
                                               Cell (Cell), CellRef (CellRef),
                                               Coordinate (Coordinate),
@@ -42,6 +43,7 @@ data Command
   | Connectivity FilePath String FilePath
   | ConnectedComponents FilePath String FilePath
   | PinDump FilePath String FilePath Bool
+  | Netlist FilePath String FilePath FilePath String
 
 commandParser :: Parser Command
 commandParser = subparser
@@ -51,7 +53,8 @@ commandParser = subparser
  <> command "intersections" (info (intersectionsParser <**> helper) (progDesc "Count bounding-rectangle and true polygon intersections among the boundary and path elements on two layer/kind pairs in a cell, including elements pulled in via SREF"))
  <> command "connectivity" (info (connectivityParser <**> helper) (progDesc "Summarize direct- and cross-layer physical connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
  <> command "components" (info (componentsParser <**> helper) (progDesc "Print the total number of connected components (nets) found via direct/cross-layer connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
- <> command "pins" (info (pinsParser <**> helper) (progDesc "Dump every pin found within a cell, per a layer-map JSON file, grouped by the specific instance (SREF placement) it belongs to")) )
+ <> command "pins" (info (pinsParser <**> helper) (progDesc "Dump every pin found within a cell, per a layer-map JSON file, grouped by the specific instance (SREF placement) it belongs to"))
+ <> command "netlist" (info (netlistParser <**> helper) (progDesc "Trace a netlist of <component.pin> -- <component.pin> connections reachable from one output pin on a cell, per a layer-map JSON file and a components YAML file naming which SREF instances are components (see layers/sky130_layers.json, pins/puzzle.yaml)")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -111,6 +114,14 @@ pinsParser = PinDump
         <> help "Treat every instantiation of a Cell (direct or via SREF) as the same, printing each Cell's pins once instead of once per instance, without a Polygon boundary (which would differ, meaninglessly, per instance)"
         )
 
+netlistParser :: Parser Command
+netlistParser = Netlist
+  <$> fileArgument
+  <*> argument str (metavar "CELL" <> help "Name of the top-level cell to trace a netlist from")
+  <*> argument str (metavar "LAYER_MAP" <> help "Path to a layer-map JSON file describing named layers and their direct/cross connections (see layers/sky130_layers.json)")
+  <*> argument str (metavar "COMPONENTS" <> help "Path to a components YAML file naming every placed Cell type's expected pins (see pins/puzzle.yaml)")
+  <*> argument str (metavar "PIN" <> help "Name of an output pin directly on the top-level cell to trace the netlist from")
+
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
 
@@ -125,6 +136,8 @@ main = do
     Connectivity path cellName layerMapPath -> runConnectivity path cellName layerMapPath
     ConnectedComponents path cellName layerMapPath -> runConnectedComponents path cellName layerMapPath
     PinDump path cellName layerMapPath merge -> runPinDump path cellName layerMapPath merge
+    Netlist path cellName layerMapPath componentsPath outputPin ->
+      runNetlist path cellName layerMapPath componentsPath outputPin
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -505,6 +518,24 @@ renderPinsByCell lm allPins = concatMap renderCell (Map.toAscList grouped)
     renderCell (cellName, pinSet) =
       (cellName ++ ":") : map renderPin (Set.toAscList pinSet) ++ [""]
     renderPin (lbl, lyr) = "  " ++ lbl ++ "  layer=" ++ layerLabel lm lyr
+
+runNetlist :: FilePath -> String -> FilePath -> FilePath -> String -> IO ()
+runNetlist path cellName layerMapPath componentsPath outputPin = do
+  contents <- BS.readFile path
+  lm       <- readLayerMap layerMapPath
+  compList <- readComponentList componentsPath
+  let cells = parseCells (buildForest (parseAllRecords contents))
+  case find (\(Cell nm _ _ _ _) -> nm == cellName) cells of
+    Just root -> mapM_ putStrLn (renderNetlist (netlist lm compList cells root outputPin))
+    Nothing   -> error ("netlist: no such cell " ++ show cellName)
+
+-- | Renders every <component.pin> -- <component.pin> connection, one per
+-- line, in the Set's own ascending order (each pair already canonicalized
+-- by 'Relationship.netlist', so this is a stable, duplicate-free order).
+renderNetlist :: Set.Set ((String, String), (String, String)) -> [String]
+renderNetlist = map renderEdge . Set.toList
+  where
+    renderEdge ((c1, p1), (c2, p2)) = c1 ++ "." ++ p1 ++ " -- " ++ c2 ++ "." ++ p2
 
 -- | Maps GDS database units onto SVG pixels: scaled to fit the larger of
 -- the drawing's width/height into 'targetSize' pixels, with 'svgPadding'

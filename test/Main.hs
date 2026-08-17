@@ -21,8 +21,8 @@ import           LayerMap          (CrossConnection (..),
                                     LayerMap (..))
 import           Relationship      (LabeledPolygon (..), LayerPolygon (..),
                                     Pin (..), connectedComponents,
-                                    connectivity, layerPolygons, pins,
-                                    pinsByInstance)
+                                    connectivity, layerPolygons, netlist,
+                                    pins, pinsByInstance)
 import           Structure         (Boundary (..), Cell (..), CellRef (..),
                                     Coordinate (..), Layer (..),
                                     TextDescription (..))
@@ -94,7 +94,7 @@ assertIntersectionIs a b expected = case polygonIntersection a b of
     (sameComponents expected actual)
 
 main :: IO ()
-main = defaultMain $ testGroup "gandalf" [geomTests, relationshipTests, componentTests]
+main = defaultMain $ testGroup "gandalf" [geomTests, relationshipTests, netlistTests, componentTests]
 
 geomTests :: TestTree
 geomTests = testGroup "Geom"
@@ -499,6 +499,131 @@ relationshipTests = testGroup "Relationship"
         assertBool "disjoint overlapping pairs get different component ids"
           (Map.lookup lpA comps /= Map.lookup lpC comps)
     ]
+  ]
+
+-- === Relationship.netlist ===================================================
+
+-- | A Component declaring exactly the given pin names, on an unused
+-- dummy layer - 'netlist' never reads a declared Pin's own 'layer' field,
+-- only its 'name', to decide which of a recognized component's
+-- geometrically-found Pins count as netlist nodes at all (see
+-- 'Relationship.netlist''s own "declared" documentation).
+componentDeclaring :: [String] -> Component.Component
+componentDeclaring names = Component.Component
+  { Component.componentType = ""
+  , Component.pins = [ Component.Pin { Component.name = nm, Component.layer = "" } | nm <- names ]
+  }
+
+netlistTests :: TestTree
+netlistTests = testGroup "Relationship.netlist"
+  [ testCase "fans out through a chain of recognized components, pairing every pin sharing a net" $ do
+      -- TOP.OUT overlaps GATE1 (INV@(0,0))'s A pin directly; GATE1's own
+      -- Y pin is bridged to GATE2 (INV@(50,0))'s A pin by a plain wire
+      -- shape (not itself a pin, so it never appears in the netlist);
+      -- GATE2's Y pin touches nothing else, so the chain ends there.
+      -- GATE1's Y and GATE2's A are placed at different absolute
+      -- coordinates deliberately - were they to coincide exactly, both
+      -- being untransformed copies of the very same INV Cell, their
+      -- LabeledPolygons (same ring, same parent Cell name "INV") would
+      -- collide into a single graph node, which would defeat the point
+      -- of this test.
+      let pinLyr  = Layer { index = 67, kind = 16 }
+          drawLyr = Layer { index = 67, kind = 20 }
+          lblLyr  = Layer { index = 67, kind = 5 }
+          lm = LayerMap
+            { layers =
+                [ layerEntry "li1.pin" 67 16
+                , layerEntry "li1.drawing" 67 20
+                , layerEntry "li1.label" 67 5
+                ]
+            , directConnections = [DirectConnection { layer = "li1" }]
+            , crossConnections = []
+            }
+          compList = Map.fromList
+            [ ("TOP", componentDeclaring ["OUT"])
+            , ("INV", componentDeclaring ["A", "Y"])
+            ]
+          invCell = cellWith "INV"
+            [boundaryOn pinLyr 0 0 10 10, boundaryOn pinLyr 20 0 30 10]
+            [textAt lblLyr 5 5 "A", textAt lblLyr 25 5 "Y"]
+            []
+          top = cellWith "TOP"
+            [boundaryOn pinLyr 0 0 10 10, boundaryOn drawLyr 25 0 55 10]
+            [textAt lblLyr 5 5 "OUT"]
+            [srefAt "INV" 0 0, srefAt "INV" 50 0]
+          result = netlist lm compList [invCell, top] top "OUT"
+          expected = Set.fromList
+            [ (("INV@(0,0)", "A"), ("TOP", "OUT"))
+            , (("INV@(0,0)", "Y"), ("INV@(50,0)", "A"))
+            ]
+      result @?= expected
+
+  , testCase "a pin absent from the component's own declared pin list is never fanned out to" $ do
+      -- Same layout as the chain test above, but INV's components-file
+      -- entry only declares "A" - so even though GATE1's Y pin is found
+      -- geometrically (and would, if declared, bridge on to GATE2), the
+      -- search never fans out to it and the chain stops at GATE1.A.
+      let pinLyr  = Layer { index = 67, kind = 16 }
+          drawLyr = Layer { index = 67, kind = 20 }
+          lblLyr  = Layer { index = 67, kind = 5 }
+          lm = LayerMap
+            { layers =
+                [ layerEntry "li1.pin" 67 16
+                , layerEntry "li1.drawing" 67 20
+                , layerEntry "li1.label" 67 5
+                ]
+            , directConnections = [DirectConnection { layer = "li1" }]
+            , crossConnections = []
+            }
+          compList = Map.fromList
+            [ ("TOP", componentDeclaring ["OUT"])
+            , ("INV", componentDeclaring ["A"])
+            ]
+          invCell = cellWith "INV"
+            [boundaryOn pinLyr 0 0 10 10, boundaryOn pinLyr 20 0 30 10]
+            [textAt lblLyr 5 5 "A", textAt lblLyr 25 5 "Y"]
+            []
+          top = cellWith "TOP"
+            [boundaryOn pinLyr 0 0 10 10, boundaryOn drawLyr 25 0 55 10]
+            [textAt lblLyr 5 5 "OUT"]
+            [srefAt "INV" 0 0, srefAt "INV" 50 0]
+          result = netlist lm compList [invCell, top] top "OUT"
+          expected = Set.fromList [ (("INV@(0,0)", "A"), ("TOP", "OUT")) ]
+      result @?= expected
+
+  , testCase "a pin on an unrecognized SREF instance never appears in the netlist at all" $ do
+      -- Same layout as above, but the components file doesn't name "INV",
+      -- so GATE1's A pin - though geometrically found, and touching
+      -- TOP.OUT's own net - never counts as a declared pin at all: it's
+      -- not fanned out to, and it's not even reported as a connection
+      -- endpoint.
+      let pinLyr = Layer { index = 67, kind = 16 }
+          lblLyr = Layer { index = 67, kind = 5 }
+          lm = LayerMap
+            { layers = [layerEntry "li1.pin" 67 16, layerEntry "li1.label" 67 5]
+            , directConnections = [DirectConnection { layer = "li1" }]
+            , crossConnections = []
+            }
+          compList = Map.fromList [("TOP", componentDeclaring ["OUT"])]
+          invCell = cellWith "INV"
+            [boundaryOn pinLyr 0 0 10 10, boundaryOn pinLyr 20 0 30 10]
+            [textAt lblLyr 5 5 "A", textAt lblLyr 25 5 "Y"]
+            []
+          top = cellWith "TOP"
+            [boundaryOn pinLyr 0 0 10 10]
+            [textAt lblLyr 5 5 "OUT"]
+            [srefAt "INV" 0 0, srefAt "INV" 20 0]
+          result = netlist lm compList [invCell, top] top "OUT"
+      result @?= Set.empty
+
+  , testCase "a pin name absent from the top cell's own pins is an error" $ do
+      let top = cellWith "TOP" [] [] []
+          lm = LayerMap { layers = [], directConnections = [], crossConnections = [] }
+      result <- try (evaluate (netlist lm Map.empty [top] top "NOPE"))
+        :: IO (Either SomeException (Set.Set ((String, String), (String, String))))
+      case result of
+        Left _  -> return ()
+        Right v -> assertFailure ("expected an error, got " ++ show v)
   ]
 
 -- === Component ==============================================================
