@@ -277,7 +277,8 @@ module adder_demo (
   sky130_fd_sc_hd__dfrtp_2 sky130_fd_sc_hd__dfrtp_2_27 (
     .CLK(net58),
     .Q(net34),
-    .RESET_B(rst_n)
+    .RESET_B(rst_n),
+    .D(net26)
   );
 
   sky130_fd_sc_hd__dfrtp_2 sky130_fd_sc_hd__dfrtp_2_28 (
