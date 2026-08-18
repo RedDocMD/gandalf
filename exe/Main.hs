@@ -17,6 +17,7 @@ import           Geom                       (Polygon, boundIntersections,
 import           LayerMap                   (LayerEntry (LayerEntry),
                                               LayerMap (LayerMap),
                                               readLayerMap)
+import           Netlist                    (netlistToVerilog, readNetlist)
 import           Options.Applicative
 import           Parse                      (GdsPresentationFlags (GdsPresentationFlags),
                                               GdsRecord, GdsRecordT,
@@ -44,6 +45,7 @@ data Command
   | ConnectedComponents FilePath String FilePath
   | PinDump FilePath String FilePath Bool
   | Netlist FilePath String FilePath FilePath String
+  | Verilog FilePath FilePath FilePath
 
 commandParser :: Parser Command
 commandParser = subparser
@@ -54,7 +56,8 @@ commandParser = subparser
  <> command "connectivity" (info (connectivityParser <**> helper) (progDesc "Summarize direct- and cross-layer physical connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
  <> command "components" (info (componentsParser <**> helper) (progDesc "Print the total number of connected components (nets) found via direct/cross-layer connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
  <> command "pins" (info (pinsParser <**> helper) (progDesc "Dump every pin found within a cell, per a layer-map JSON file, grouped by the specific instance (SREF placement) it belongs to"))
- <> command "netlist" (info (netlistParser <**> helper) (progDesc "Trace a netlist of <component.pin> -- <component.pin> connections reachable from one output pin on a cell, per a layer-map JSON file and a components YAML file naming which SREF instances are components (see layers/sky130_layers.json, pins/puzzle.yaml)")) )
+ <> command "netlist" (info (netlistParser <**> helper) (progDesc "Trace a netlist of <component.pin> -- <component.pin> connections reachable from one output pin on a cell, per a layer-map JSON file and a components YAML file naming which SREF instances are components (see layers/sky130_layers.json, pins/puzzle.yaml)"))
+ <> command "verilog" (info (verilogParser <**> helper) (progDesc "Convert an extracted netlist text file into a structural Verilog module, per a components YAML file naming every placed cell type's pins (see pins/demo.yaml, netlist/demo.netlist)")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -122,6 +125,12 @@ netlistParser = Netlist
   <*> argument str (metavar "COMPONENTS" <> help "Path to a components YAML file naming every placed Cell type's expected pins (see pins/puzzle.yaml)")
   <*> argument str (metavar "PIN" <> help "Name of an output pin directly on the top-level cell to trace the netlist from")
 
+verilogParser :: Parser Command
+verilogParser = Verilog
+  <$> argument str (metavar "COMPONENTS" <> help "Path to a components YAML file naming every placed cell type's pins (see pins/demo.yaml)")
+  <*> argument str (metavar "NETLIST" <> help "Path to an extracted netlist text file (see netlist/demo.netlist)")
+  <*> argument str (metavar "OUTPUT" <> help "Path to write the generated Verilog module to")
+
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
 
@@ -138,6 +147,8 @@ main = do
     PinDump path cellName layerMapPath merge -> runPinDump path cellName layerMapPath merge
     Netlist path cellName layerMapPath componentsPath outputPin ->
       runNetlist path cellName layerMapPath componentsPath outputPin
+    Verilog componentsPath netlistPath outputPath ->
+      runVerilog componentsPath netlistPath outputPath
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -536,6 +547,12 @@ renderNetlist :: Set.Set ((String, String), (String, String)) -> [String]
 renderNetlist = map renderEdge . Set.toList
   where
     renderEdge ((c1, p1), (c2, p2)) = c1 ++ "." ++ p1 ++ " -- " ++ c2 ++ "." ++ p2
+
+runVerilog :: FilePath -> FilePath -> FilePath -> IO ()
+runVerilog componentsPath netlistPath outputPath = do
+  compList <- readComponentList componentsPath
+  nl       <- readNetlist netlistPath
+  writeFile outputPath (netlistToVerilog compList nl)
 
 -- | Maps GDS database units onto SVG pixels: scaled to fit the larger of
 -- the drawing's width/height into 'targetSize' pixels, with 'svgPadding'
