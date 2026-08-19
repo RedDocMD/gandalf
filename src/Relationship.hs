@@ -28,9 +28,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set        as Set
 import           Geom            (Polygon, Rectangle (..),
                                   RectangleBounded (..), Transform (..),
-                                  boundaryToPolygon, pathToPolygon,
-                                  polygonIntersection, transformCoordinate,
-                                  transformPolygon)
+                                  boundaryToPolygon, edgeTouches,
+                                  pathToPolygon, polygonIntersection,
+                                  transformCoordinate, transformPolygon)
 import           LayerMap        (CrossConnection (..), DirectConnection (..),
                                   LayerEntry (..), LayerMap (..))
 import           Parse           (GdsStransFlags (..))
@@ -209,17 +209,21 @@ boundsOverlap p q =
     r1 = boundingRect p
     r2 = boundingRect q
 
--- | Whether two Polygons truly (non-zero-area) overlap.
+-- | Whether two Polygons are electrically touching: a true (non-zero-area)
+-- overlap, per 'Geom.polygonIntersection', or plain edge-to-edge abutment -
+-- sharing a boundary segment of positive length, per 'Geom.edgeTouches'.
+-- Two Polygons meeting only at a single corner point count as neither, and
+-- so aren't touching.
 overlaps :: Polygon -> Polygon -> Bool
-overlaps p q = boundsOverlap p q && isJust (polygonIntersection p q)
+overlaps p q = boundsOverlap p q && (isJust (polygonIntersection p q) || edgeTouches p q)
 
 -- | Every pair of Polygons found to be electrically connected within a
 -- Cell, per a LayerMap's "direct_connections" (Polygons on the very same
--- named layer that physically overlap each other) and "cross_connections"
--- (a named layer A's Polygons bridged to a named layer B's Polygons by a
--- shared overlap with some via layer C's Polygons), returned as a classic
--- adjacency list: for every connected Polygon, every other Polygon it was
--- found to touch.
+-- named layer that physically touch or overlap each other, per 'overlaps')
+-- and "cross_connections" (a named layer A's Polygons bridged to a named
+-- layer B's Polygons by a shared touch/overlap with some via layer C's
+-- Polygons), returned as a classic adjacency list: for every connected
+-- Polygon, every other Polygon it was found to touch.
 --
 -- A "layer name" here, as it appears in the LayerMap's connection lists
 -- (e.g. "poly" or "li1"), matches every LayerEntry whose own name has

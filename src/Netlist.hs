@@ -194,15 +194,15 @@ instanceNames insts = Map.fromList
   [ (inst, cellType inst ++ "_" ++ show n) | (inst, n) <- zip insts [0 :: Int ..] ]
 
 -- | Every cell type named in a ComponentList's entries - matched by each
--- entry's own 'Component.componentType', not the ComponentList's own key,
--- since an Instance is identified by its cell type (see 'Instance'), not
--- by any instance name of its own - mapped to its full formal pin name
--- list, in the order given in the YAML file.
+-- entry's own map key (the YAML entry name, e.g.
+-- "sky130_fd_sc_hd__clkbuf_4"), since an Instance is identified by its
+-- cell type string (see 'Instance'), which is that same YAML key, not the
+-- entry's "type" field (a human-readable description, not necessarily
+-- unique across cell types - e.g. every clock-tree buffer variant shares
+-- the description "Clock tree buffer") - mapped to its full formal pin
+-- name list, in the order given in the YAML file.
 cellTypePins :: ComponentList -> Map.Map String [String]
-cellTypePins compList = Map.fromList
-  [ (ct, map declaredPinName ps)
-  | Component { componentType = ct, pins = ps } <- Map.elems compList
-  ]
+cellTypePins compList = Map.map (\Component { pins = ps } -> map declaredPinName ps) compList
   where declaredPinName Pin { name = n } = n
 
 -- | Every Instance's own pin -> net-signal-name connections, gathered in a

@@ -1,4 +1,4 @@
-read_verilog netlist/demo.v cells/verilog/*.v
+read_verilog netlist/demo2.v cells/verilog/*.v
 hierarchy -top adder_demo
 proc
 cd adder_demo

@@ -10,6 +10,7 @@ module Geom
   , Rectangle (..)
   , boundIntersections
   , boundaryToPolygon
+  , edgeTouches
   , pathToPolygon
   , polygonIntersection
   , polygonVertices
@@ -278,21 +279,66 @@ data VerticalEdge = VerticalEdge
   }
   deriving (Show, Eq)
 
--- | Extracts the vertical edges of a rectilinear polygon's ring. Horizontal
--- edges are dropped - the sweep below only needs verticals, since a
--- rectilinear polygon's y cross-section only changes at those x's.
-verticalEdges :: Polygon -> [VerticalEdge]
-verticalEdges (Polygon coords) = concatMap classify (zip cs (NE.tail coords))
+-- | A horizontal edge of a rectilinear polygon's ring, with hXLo < hXHi.
+data HorizontalEdge = HorizontalEdge
+  { hY   :: !Int
+  , hXLo :: !Int
+  , hXHi :: !Int
+  }
+  deriving (Show, Eq)
+
+-- | Splits a rectilinear polygon's ring into its vertical and horizontal
+-- edges, sharing the validation every edge must pass (axis-aligned,
+-- non-degenerate) between 'verticalEdges' (the intersection sweep below
+-- only needs verticals, since a rectilinear polygon's y cross-section only
+-- changes at those x's) and 'horizontalEdges' (needed only by
+-- 'edgeTouches').
+polygonEdges :: Polygon -> ([VerticalEdge], [HorizontalEdge])
+polygonEdges (Polygon coords) = foldMap classify (zip cs (NE.tail coords))
   where
     cs = toList coords
-    classify :: (Coordinate, Coordinate) -> [VerticalEdge]
+    classify :: (Coordinate, Coordinate) -> ([VerticalEdge], [HorizontalEdge])
     classify (a, b)
       | a.x == b.x && a.y == b.y =
           geomError "polygonIntersection: degenerate zero-length edge"
       | a.x == b.x =
-          [VerticalEdge { vX = a.x, vYLo = min a.y b.y, vYHi = max a.y b.y }]
-      | a.y == b.y = []
+          ([VerticalEdge { vX = a.x, vYLo = min a.y b.y, vYHi = max a.y b.y }], [])
+      | a.y == b.y =
+          ([], [HorizontalEdge { hY = a.y, hXLo = min a.x b.x, hXHi = max a.x b.x }])
       | otherwise  = geomError "polygonIntersection: non-rectilinear edge"
+
+verticalEdges :: Polygon -> [VerticalEdge]
+verticalEdges = fst . polygonEdges
+
+horizontalEdges :: Polygon -> [HorizontalEdge]
+horizontalEdges = snd . polygonEdges
+
+-- | Whether two closed integer intervals overlap over a range of positive
+-- length - sharing only an endpoint (zero length) doesn't count.
+overlapsPositively :: Int -> Int -> Int -> Int -> Bool
+overlapsPositively aLo aHi bLo bHi = max aLo bLo < min aHi bHi
+
+-- | Whether two rectilinear polygons abut along a shared boundary segment
+-- of positive length - true edge-to-edge contact, as distinct from merely
+-- touching at a single corner point. Only collinear edges (both vertical at
+-- the same x, or both horizontal at the same y) can ever share more than a
+-- point, so this checks every such pair for a positive-length overlap; a
+-- vertical edge can only ever meet a horizontal one at a single point,
+-- which is exactly the corner-touch case this is meant to exclude.
+--
+-- Independent of 'polygonIntersection': it neither implies nor is implied
+-- by a genuine area overlap (e.g. one polygon nested entirely inside
+-- another, sharing no boundary, overlaps in area without this being true).
+-- A caller wanting "touching or overlapping" checks both explicitly.
+edgeTouches :: Polygon -> Polygon -> Bool
+edgeTouches polyA polyB = verticalTouch || horizontalTouch
+  where
+    verticalTouch = or
+      [ overlapsPositively a.vYLo a.vYHi b.vYLo b.vYHi
+      | a <- verticalEdges polyA, b <- verticalEdges polyB, a.vX == b.vX ]
+    horizontalTouch = or
+      [ overlapsPositively a.hXLo a.hXHi b.hXLo b.hXHi
+      | a <- horizontalEdges polyA, b <- horizontalEdges polyB, a.hY == b.hY ]
 
 -- | Groups vertical edges by their x coordinate, for slab-by-slab lookup
 -- during the sweep.

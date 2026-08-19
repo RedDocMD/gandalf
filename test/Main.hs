@@ -14,8 +14,8 @@ import qualified Component
 import           Component         (readComponentList)
 import           Geom              (Polygon, Rectangle (..),
                                     RectangleBounded (..), boundIntersections,
-                                    boundaryToPolygon, polygonIntersection,
-                                    samePolygon)
+                                    boundaryToPolygon, edgeTouches,
+                                    polygonIntersection, samePolygon)
 import           LayerMap          (CrossConnection (..),
                                     DirectConnection (..), LayerEntry (..),
                                     LayerMap (..))
@@ -197,6 +197,26 @@ geomTests = testGroup "Geom"
     -- candidates) turned up none, so the branch is believed unreachable in
     -- practice for real GDS shapes and is exercised only by code review,
     -- not a constructed example.
+    ]
+
+  , testGroup "edgeTouches"
+    [ testCase "sharing a full vertical edge counts as touching" $
+        edgeTouches (rectPoly 0 0 5 5) (rectPoly 5 0 10 5) @?= True
+
+    , testCase "sharing a full horizontal edge counts as touching" $
+        edgeTouches (rectPoly 0 0 5 5) (rectPoly 0 5 5 10) @?= True
+
+    , testCase "sharing only part of an edge still counts as touching" $
+        edgeTouches (rectPoly 0 0 5 5) (rectPoly 5 2 10 8) @?= True
+
+    , testCase "touching at a single corner does not count as touching" $
+        edgeTouches (rectPoly 0 0 5 5) (rectPoly 5 5 10 10) @?= False
+
+    , testCase "separated polygons do not count as touching" $
+        edgeTouches (rectPoly 0 0 5 5) (rectPoly 6 0 10 5) @?= False
+
+    , testCase "a genuine area overlap with no shared edge does not count as edge-touching" $
+        edgeTouches (rectPoly 0 0 20 20) (rectPoly 5 5 15 15) @?= False
     ]
   ]
 
@@ -432,6 +452,35 @@ relationshipTests = testGroup "Relationship"
             lpGate    = LayerPolygon "poly" (LabeledPolygon (boundaryToPolygon polyGate) "TOP")
             result = connectivity lm [top] top
         Map.keysSet result @?= Set.fromList [lpDrawing, lpGate]
+
+    , testCase "Polygons sharing a full edge on a direct-connection layer are linked" $ do
+        let polyLyr = Layer { index = 1, kind = 0 }
+            polyA = boundaryOn polyLyr 0 0 5 5
+            polyB = boundaryOn polyLyr 5 0 10 5
+            top   = cellWith "TOP" [polyA, polyB] [] []
+            lm = LayerMap
+              { layers = [layerEntry "poly.drawing" 1 0]
+              , directConnections = [DirectConnection { layer = "poly" }]
+              , crossConnections = []
+              }
+            lpA = LayerPolygon "poly" (LabeledPolygon (boundaryToPolygon polyA) "TOP")
+            lpB = LayerPolygon "poly" (LabeledPolygon (boundaryToPolygon polyB) "TOP")
+            result = connectivity lm [top] top
+        Map.lookup lpA result @?= Just [lpB]
+        Map.lookup lpB result @?= Just [lpA]
+
+    , testCase "Polygons touching only at a corner on a direct-connection layer are not linked" $ do
+        let polyLyr = Layer { index = 1, kind = 0 }
+            polyA = boundaryOn polyLyr 0 0 5 5
+            polyB = boundaryOn polyLyr 5 5 10 10
+            top   = cellWith "TOP" [polyA, polyB] [] []
+            lm = LayerMap
+              { layers = [layerEntry "poly.drawing" 1 0]
+              , directConnections = [DirectConnection { layer = "poly" }]
+              , crossConnections = []
+              }
+            result = connectivity lm [top] top
+        result @?= Map.empty
 
     , testCase "a cross_connections entry naming other than two layers is an error" $ do
         let lm = LayerMap
