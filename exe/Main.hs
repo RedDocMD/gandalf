@@ -46,6 +46,7 @@ data Command
   | PinDump FilePath String FilePath Bool
   | Netlist FilePath String FilePath FilePath String
   | Verilog FilePath FilePath FilePath
+  | Labels FilePath
 
 commandParser :: Parser Command
 commandParser = subparser
@@ -57,7 +58,8 @@ commandParser = subparser
  <> command "components" (info (componentsParser <**> helper) (progDesc "Print the total number of connected components (nets) found via direct/cross-layer connectivity within a cell, per a layer-map JSON file, including elements pulled in via SREF"))
  <> command "pins" (info (pinsParser <**> helper) (progDesc "Dump every pin found within a cell, per a layer-map JSON file, grouped by the specific instance (SREF placement) it belongs to"))
  <> command "netlist" (info (netlistParser <**> helper) (progDesc "Trace a netlist of <component.pin> -- <component.pin> connections reachable from one output pin on a cell, per a layer-map JSON file and a components YAML file naming which SREF instances are components (see layers/sky130_layers.json, pins/puzzle.yaml)"))
- <> command "verilog" (info (verilogParser <**> helper) (progDesc "Convert an extracted netlist text file into a structural Verilog module, per a components YAML file naming every placed cell type's pins (see pins/demo.yaml, netlist/demo.netlist)")) )
+ <> command "verilog" (info (verilogParser <**> helper) (progDesc "Convert an extracted netlist text file into a structural Verilog module, per a components YAML file naming every placed cell type's pins (see pins/demo.yaml, netlist/demo.netlist)"))
+ <> command "labels" (info (labelsParser <**> helper) (progDesc "Print every string block's label found in each cell of a GDS file, without expanding elements pulled in via SREF")) )
 
 dumpParser :: Parser Command
 dumpParser = Dump <$> fileArgument <*> cellNameOption
@@ -131,6 +133,9 @@ verilogParser = Verilog
   <*> argument str (metavar "NETLIST" <> help "Path to an extracted netlist text file (see netlist/demo.netlist)")
   <*> argument str (metavar "OUTPUT" <> help "Path to write the generated Verilog module to")
 
+labelsParser :: Parser Command
+labelsParser = Labels <$> fileArgument
+
 fileArgument :: Parser FilePath
 fileArgument = argument str (metavar "FILE" <> help "Path to a GDS file")
 
@@ -149,6 +154,7 @@ main = do
       runNetlist path cellName layerMapPath componentsPath outputPin
     Verilog componentsPath netlistPath outputPath ->
       runVerilog componentsPath netlistPath outputPath
+    Labels path -> runLabels path
   where
     opts = info (commandParser <**> helper)
       ( fullDesc <> progDesc "Gandalf: parse and inspect GDSII files" )
@@ -553,6 +559,26 @@ runVerilog componentsPath netlistPath outputPath = do
   compList <- readComponentList componentsPath
   nl       <- readNetlist netlistPath
   writeFile outputPath (netlistToVerilog compList nl)
+
+runLabels :: FilePath -> IO ()
+runLabels path = do
+  contents <- BS.readFile path
+  let cells = parseCells (buildForest (parseAllRecords contents))
+  mapM_ putStrLn (renderLabels cells)
+
+-- | Every string block's label (the STRING record's payload), one section
+-- per Cell in the file, listing only the Text elements the Cell directly
+-- contains - elements pulled in transitively through an SREF are attributed
+-- to the Cell that actually defines them, not expanded into every Cell that
+-- references them.
+renderLabels :: [Cell] -> [String]
+renderLabels = concatMap renderCellLabels
+
+renderCellLabels :: Cell -> [String]
+renderCellLabels (Cell nm _ _ txts _) =
+  (nm ++ ":") : map renderLabel txts ++ [""]
+  where
+    renderLabel (TextDescription _ _ val _ _ _ _) = "  " ++ val
 
 -- | Maps GDS database units onto SVG pixels: scaled to fit the larger of
 -- the drawing's width/height into 'targetSize' pixels, with 'svgPadding'
