@@ -10,19 +10,37 @@ module tb;
     wire tb_rst_n = rst_n_reg;
     wire tb_enable = enable_reg;
     wire tb_success;
+    wire tb_matched;
     wire [7:0] tb_O;
+    wire [159:0] tb_Stored;
 
     integer i;
-    localparam WIDTH = 123;
-    localparam [WIDTH-1:0] I_bits = 123'b000000010101000010000000000001010101000000000000101000000100000100000010000010100001000000010000001000001001000101000000000;
 
-    puzzle puz(
+    // Ouput is: (* TWO STARS *)
+    // localparam WIDTH = 123;
+    // localparam [WIDTH-1:0] I_bits = 123'b000000010101000010000000000001010101000000000000101000000100000100000010000010100001000000010000001000001001000101000000000;
+
+    // Output is: TWO NOT TOUCH
+    localparam WIDTH = 140;
+    localparam [WIDTH-1:0] I_bits = 140'b00001000010000010100000000000101000000011000101000000000000010010000000000101011000000000001000000111000000000000101000000000000000010111110;
+
+    // puzzle puz(
+    //     .clk(clk),
+    //     .I(tb_I),
+    //     .success(tb_success),
+    //     .rst_n(tb_rst_n),
+    //     .enable(tb_enable),
+    //     .O(tb_O)
+    // );
+    checked_puzzle puz(
         .clk(clk),
         .I(tb_I),
         .success(tb_success),
         .rst_n(tb_rst_n),
         .enable(tb_enable),
-        .O(tb_O)
+        .actualOutput(tb_O),
+        .storedOutput(tb_Stored),
+        .matched(tb_matched)
     );
 
     always #5 clk = ~clk;
