@@ -65,13 +65,11 @@ data Cell = Cell
 
 -- Parsing: AST -> Structure
 
--- | error requires Text (relude's Prelude), while the rest of this module
--- builds messages as String; this is the single conversion point.
+-- | relude's error wants Text; single conversion point for this module.
 parseError :: String -> a
 parseError = error . toText
 
--- | Extracts the payload of a record expected to hold a single Int,
--- erroring if the record isn't one of the Int-carrying kinds.
+-- | The payload of a record expected to hold a single Int; errors otherwise.
 intPayload :: GdsRecordT -> Int
 intPayload r = case r of
   GdsHeaderT n   -> n
@@ -106,22 +104,21 @@ presentationPayload :: GdsRecordT -> GdsPresentationFlags
 presentationPayload (GdsPresentationT flags) = flags
 presentationPayload r                        = parseError ("expected a Presentation record, got " ++ show r)
 
--- | Looks up a required child among a node's children, erroring with the
--- given context (e.g. the enclosing record kind) if it's absent.
+-- | Looks up a required child, erroring with the given context (e.g. the
+-- enclosing record kind) if absent.
 requireChild :: String -> GdsRecord -> [AST] -> AST
 requireChild ctx wantedKind children = case findChild wantedKind children of
   Just child -> child
   Nothing    -> parseError (ctx ++ ": missing required " ++ show wantedKind)
 
--- | last for lists known non-empty by construction (relude hides the
--- partial Prelude 'last').
+-- | 'last' for lists known non-empty by construction (relude hides Prelude's).
 lastOf :: [a] -> a
 lastOf [v]      = v
 lastOf (_ : xs) = lastOf xs
 lastOf []       = parseError "lastOf: empty list"
 
 -- | Builds a Layer from the mandatory GdsLayer child plus a caller-chosen
--- "kind" record - GdsDataType for Boundary/Path, GdsTextType for Text.
+-- kind record (GdsDataType for Boundary/Path, GdsTextType for Text).
 parseLayer :: GdsRecord -> [AST] -> Layer
 parseLayer kindRecord children = Layer
   { index = intPayload (astRecord (requireChild "Layer" GdsLayer children))
@@ -211,7 +208,7 @@ parseCell node
       }
   where children = astChildren node
 
--- | Parses every structure (BGNSTR) in a library's AST forest into a Cell.
+-- | Parses every BGNSTR structure in a library's AST forest into a Cell.
 parseCells :: [AST] -> [Cell]
 parseCells forest = map parseCell (findChildren GdsBgnStr children)
   where children = astChildren (requireChild "Library" GdsBgnLib forest)

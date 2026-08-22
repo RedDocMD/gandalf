@@ -10,10 +10,8 @@ module AST
 
 import           Parse (GdsRecord, GdsRecordT (..), gdsRecordKind)
 
--- | A GDS record together with the records nested beneath it - e.g. the
--- elements between a BOUNDARY and its ENDEL, or the structures between a
--- BGNLIB and its ENDLIB. This only captures the nesting shape of a record
--- stream; it doesn't interpret what the nesting means.
+-- | A GDS record together with the records nested beneath it (e.g. between
+-- a BOUNDARY and its ENDEL, or a BGNLIB and its ENDLIB).
 data AST = AST
   { astRecord   :: GdsRecordT
   , astChildren :: [AST]
@@ -30,11 +28,9 @@ findChild kind = find ((== kind) . astKind)
 findChildren :: GdsRecord -> [AST] -> [AST]
 findChildren kind = filter ((== kind) . astKind)
 
--- | Groups a flat stream of records into a forest by matching each
--- "begin" record (BGNLIB, BGNSTR, or an element record) with the "end"
--- record that closes it (ENDLIB, ENDSTR, ENDEL). A stray end record with
--- no matching begin, or a begin record left open at end of input, is a
--- malformed record stream and is a hard error.
+-- | Groups a flat record stream into a forest by matching each opener
+-- (BGNLIB, BGNSTR, or an element record) with its closer (ENDLIB, ENDSTR,
+-- ENDEL). Errors on a stray closer or an opener left unclosed at EOF.
 buildForest :: [GdsRecordT] -> [AST]
 buildForest = finalize . foldl' step ([], [])
   where
@@ -54,8 +50,7 @@ buildForest = finalize . foldl' step ([], [])
     finalize (forest, [])              = reverse forest
     finalize (_, (rec0, _) : _)        = astError ("unclosed opening record: " ++ show rec0)
 
--- | error requires Text (relude's Prelude); this is the single conversion
--- point for buildForest's malformed-stream errors.
+-- | relude's error wants Text; single conversion point for this module.
 astError :: String -> a
 astError = error . toText
 

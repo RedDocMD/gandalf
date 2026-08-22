@@ -36,17 +36,15 @@ data Box = Box
 instance RectangleBounded Box where
   boundingRect b = b.boxRect
 
--- | Builds a Box from its bounds (minX, minY, maxX, maxY) rather than the
--- top-left/width/height representation Rectangle itself uses, since the
--- latter measures height downward from a top-left corner whose y is the
--- *maximum* y (matching the Polygon instance's convention).
+-- | Builds a Box from its bounds (minX, minY, maxX, maxY) rather than
+-- Rectangle's own top-left/width/height, whose top-left.y is the
+-- *maximum* y.
 box :: String -> Int -> Int -> Int -> Int -> Box
 box l minX minY maxX maxY =
   Box l (Rectangle (Coordinate minX maxY) (maxX - minX) (maxY - minY))
 
--- | boundIntersections doesn't promise pair order or direction; normalize to
--- an order-independent set of label pairs so assertions aren't brittle to
--- the sweep's internal ordering.
+-- | Normalizes boundIntersections's pairs to an order-independent set of
+-- label pairs, since it promises neither pair order nor direction.
 intersectionLabels :: [(Box, Box)] -> Set.Set (String, String)
 intersectionLabels = Set.fromList . map toPair
   where
@@ -59,13 +57,11 @@ assertIntersections :: [Box] -> [(String, String)] -> Assertion
 assertIntersections boxes expected =
   intersectionLabels (boundIntersections boxes) @?= Set.fromList expected
 
--- | A single-use Layer, since polygonIntersection doesn't care what layer
--- its inputs came from.
 dummyLayer :: Layer
 dummyLayer = Layer { index = 0, kind = 0 }
 
--- | Builds a rectilinear Polygon from an explicit vertex list (the ring's
--- closing point is appended automatically).
+-- | Builds a rectilinear Polygon from a vertex list; the closing point is
+-- appended automatically.
 polyFrom :: [(Int, Int)] -> Polygon
 polyFrom []             = error "polyFrom: empty vertex list"
 polyFrom pts@((x0, y0) : _) =
@@ -77,9 +73,8 @@ rectPoly :: Int -> Int -> Int -> Int -> Polygon
 rectPoly minX minY maxX maxY =
   polyFrom [(minX, minY), (maxX, minY), (maxX, maxY), (minX, maxY)]
 
--- | Order-independent comparison of a list of intersection components
--- against the expected shapes (see 'samePolygon' for why exact vertex
--- order/starting-point isn't part of the comparison).
+-- | Order-independent comparison of intersection components against
+-- expected shapes; see 'samePolygon'.
 sameComponents :: [Polygon] -> [Polygon] -> Bool
 sameComponents as bs = length as == length bs && all (\a -> any (samePolygon a) bs) as
 
@@ -147,7 +142,7 @@ geomTests = testGroup "Geom"
 
   , testGroup "polygonIntersection"
     [ testCase "L-shape vs. a rectangle sitting entirely in its notch" $
-        -- L covers [0,10]x[0,10] minus the notch [4,10]x[4,10].
+        -- L is [0,10]x[0,10] minus the notch [4,10]x[4,10].
         assertNoIntersection
           (polyFrom [(0, 0), (10, 0), (10, 4), (4, 4), (4, 10), (0, 10)])
           (rectPoly 5 5 9 9)
@@ -170,33 +165,29 @@ geomTests = testGroup "Geom"
           (rectPoly 5 0 10 5)
 
     , testCase "U-shape vs. a bar spanning its notch splits into two pieces" $
-        -- U covers the left/right legs [0,4]x[0,10] and [8,12]x[0,10], plus
-        -- the base [0,12]x[0,4] - the notch [4,8]x[4,10] is empty.
+        -- U's legs are [0,4]x[0,10] and [8,12]x[0,10], base [0,12]x[0,4];
+        -- notch [4,8]x[4,10] is empty.
         assertIntersectionIs
           (polyFrom [(0, 0), (12, 0), (12, 10), (8, 10), (8, 4), (4, 4), (4, 10), (0, 10)])
           (rectPoly 0 6 12 8)
           [rectPoly 0 6 4 8, rectPoly 8 6 12 8]
 
     , testCase "step-shaped partial overlap exercises the seam-fringe fix" $
-        -- A steps down from y=10 to y=6 at x=5; B is a plain full-width
-        -- band. At x=5, A's coverage shrinks while B's doesn't, so the
-        -- correct seam is a small fringe edge, not a full-segment cancel.
+        -- A steps down from y=10 to y=6 at x=5; B is a full-width band.
+        -- At x=5, A's coverage shrinks while B's doesn't, so the correct
+        -- seam is a small fringe edge, not a full-segment cancel.
         assertIntersectionIs
           (polyFrom [(0, 0), (10, 0), (10, 6), (5, 6), (5, 10), (0, 10)])
           (rectPoly 0 3 10 10)
           [polyFrom [(0, 3), (10, 3), (10, 6), (5, 6), (5, 10), (0, 10)]]
 
-    -- No test case exercises the "intersection encloses a hole" geomError
-    -- path: a Mayer-Vietoris/Euler-characteristic argument (components -
-    -- holes = 2 - components(A u B), and A u B is always connected when
-    -- A n B is non-empty) shows a *single-component* hole is topologically
-    -- impossible from two simple polygons - it would need a second,
-    -- separate component to "spend" on satisfying that count, which in
-    -- turn needs its own delicate, non-generic construction. An extensive
-    -- search (thousands of randomized and hand-derived rectilinear
-    -- candidates) turned up none, so the branch is believed unreachable in
-    -- practice for real GDS shapes and is exercised only by code review,
-    -- not a constructed example.
+    -- No test exercises the "intersection encloses a hole" geomError path:
+    -- an Euler-characteristic argument (components - holes = 2 -
+    -- components(A u B), and A u B is connected whenever A n B is
+    -- non-empty) shows a single-component hole is topologically impossible
+    -- from two simple polygons. An extensive randomized/hand-derived
+    -- search turned up no counterexample, so the branch is believed
+    -- unreachable and is exercised only by code review.
     ]
 
   , testGroup "edgeTouches"
@@ -225,8 +216,8 @@ geomTests = testGroup "Geom"
 coord :: Int -> Int -> Coordinate
 coord cx cy = Coordinate { x = cx, y = cy }
 
--- | A rectangle's Boundary coordinate ring, closing back to its start
--- point per the GDS convention 'Geom.boundaryToPolygon' relies on.
+-- | A rectangle's Boundary coordinate ring, closed back to its start per
+-- 'Geom.boundaryToPolygon''s GDS convention.
 rectCoords :: Int -> Int -> Int -> Int -> [Coordinate]
 rectCoords minX minY maxX maxY =
   [coord minX minY, coord maxX minY, coord maxX maxY, coord minX maxY, coord minX minY]
@@ -239,12 +230,12 @@ cellWith :: String -> [Boundary] -> [TextDescription] -> [CellRef] -> Cell
 cellWith nm bnds txts refs =
   Cell { name = nm, boundary = bnds, path = [], text = txts, cellRef = refs }
 
--- | An SREF with a translation only - no STRANS/ANGLE records.
+-- | An SREF with a translation only, no STRANS/ANGLE records.
 srefAt :: String -> Int -> Int -> CellRef
 srefAt nm dx dy =
   CellRef { name = nm, coord = coord dx dy, translation = Nothing, angle = Nothing }
 
--- | An SREF with a translation and a rotation, but no STRANS record.
+-- | An SREF with a translation and rotation, no STRANS record.
 srefRotated :: String -> Int -> Int -> Double -> CellRef
 srefRotated nm dx dy ang =
   CellRef { name = nm, coord = coord dx dy, translation = Nothing, angle = Just ang }
@@ -258,9 +249,8 @@ textAt lyr tx ty val = TextDescription
 layerEntry :: String -> Int -> Int -> LayerEntry
 layerEntry nm lyr dt = LayerEntry { name = nm, layer = lyr, datatype = dt }
 
--- | A LayerPolygon distinguished only by position - for connectedComponents
--- tests that need distinct, orderable node identities but no real
--- overlap/geometry.
+-- | A LayerPolygon distinguished only by position, for connectedComponents
+-- tests needing distinct, orderable node identities with no real geometry.
 node :: Int -> Int -> LayerPolygon
 node minX minY = LayerPolygon "poly"
   (LabeledPolygon (boundaryToPolygon (boundaryOn (Layer 1 0) minX minY (minX + 1) (minY + 1))) "TOP")
@@ -296,8 +286,8 @@ relationshipTests = testGroup "Relationship"
         Map.lookup lyr grouped @?= Just [LabeledPolygon (boundaryToPolygon expected) "LEAF"]
 
     , testCase "an SREF's rotation is applied about its own placement point before translating" $ do
-        -- LEAF's 10x5 rectangle, rotated 90 degrees counter-clockwise about
-        -- the origin, then placed at (50, 50): (0,0)->(50,50), (10,0)->(50,60),
+        -- LEAF's 10x5 rectangle, rotated 90 degrees CCW about the origin,
+        -- then placed at (50,50): (0,0)->(50,50), (10,0)->(50,60),
         -- (10,5)->(45,60), (0,5)->(45,50).
         let lyr  = Layer { index = 1, kind = 0 }
             leaf = cellWith "LEAF" [boundaryOn lyr 0 0 10 5] [] []
@@ -553,10 +543,7 @@ relationshipTests = testGroup "Relationship"
 -- === Relationship.netlist ===================================================
 
 -- | A Component declaring exactly the given pin names, on an unused
--- dummy layer - 'netlist' never reads a declared Pin's own 'layer' field,
--- only its 'name', to decide which of a recognized component's
--- geometrically-found Pins count as netlist nodes at all (see
--- 'Relationship.netlist''s own "declared" documentation).
+-- dummy layer - 'netlist' only reads a declared Pin's 'name', not 'layer'.
 componentDeclaring :: [String] -> Component.Component
 componentDeclaring names = Component.Component
   { Component.componentType = ""
@@ -566,16 +553,13 @@ componentDeclaring names = Component.Component
 netlistTests :: TestTree
 netlistTests = testGroup "Relationship.netlist"
   [ testCase "fans out through a chain of recognized components, pairing every pin sharing a net" $ do
-      -- TOP.OUT overlaps GATE1 (INV@(0,0))'s A pin directly; GATE1's own
-      -- Y pin is bridged to GATE2 (INV@(50,0))'s A pin by a plain wire
-      -- shape (not itself a pin, so it never appears in the netlist);
-      -- GATE2's Y pin touches nothing else, so the chain ends there.
-      -- GATE1's Y and GATE2's A are placed at different absolute
-      -- coordinates deliberately - were they to coincide exactly, both
-      -- being untransformed copies of the very same INV Cell, their
-      -- LabeledPolygons (same ring, same parent Cell name "INV") would
-      -- collide into a single graph node, which would defeat the point
-      -- of this test.
+      -- TOP.OUT overlaps GATE1 (INV@(0,0))'s A pin directly; GATE1's Y
+      -- pin is bridged to GATE2 (INV@(50,0))'s A pin by a plain wire
+      -- shape (not a pin, so it never appears in the netlist); GATE2's Y
+      -- touches nothing else, so the chain ends there. GATE1's Y and
+      -- GATE2's A sit at different absolute coordinates deliberately:
+      -- both are untransformed copies of the same INV Cell, so coinciding
+      -- coordinates would collide their LabeledPolygons into one node.
       let pinLyr  = Layer { index = 67, kind = 16 }
           drawLyr = Layer { index = 67, kind = 20 }
           lblLyr  = Layer { index = 67, kind = 5 }
@@ -608,10 +592,9 @@ netlistTests = testGroup "Relationship.netlist"
       result @?= expected
 
   , testCase "a pin absent from the component's own declared pin list is never fanned out to" $ do
-      -- Same layout as the chain test above, but INV's components-file
-      -- entry only declares "A" - so even though GATE1's Y pin is found
-      -- geometrically (and would, if declared, bridge on to GATE2), the
-      -- search never fans out to it and the chain stops at GATE1.A.
+      -- Same layout as the chain test above, but INV only declares "A",
+      -- so the search never fans out through GATE1's Y and the chain
+      -- stops at GATE1.A.
       let pinLyr  = Layer { index = 67, kind = 16 }
           drawLyr = Layer { index = 67, kind = 20 }
           lblLyr  = Layer { index = 67, kind = 5 }
@@ -642,10 +625,8 @@ netlistTests = testGroup "Relationship.netlist"
 
   , testCase "a pin on an unrecognized SREF instance never appears in the netlist at all" $ do
       -- Same layout as above, but the components file doesn't name "INV",
-      -- so GATE1's A pin - though geometrically found, and touching
-      -- TOP.OUT's own net - never counts as a declared pin at all: it's
-      -- not fanned out to, and it's not even reported as a connection
-      -- endpoint.
+      -- so GATE1's A pin never counts as declared: not fanned out to, and
+      -- not reported as a connection endpoint.
       let pinLyr = Layer { index = 67, kind = 16 }
           lblLyr = Layer { index = 67, kind = 5 }
           lm = LayerMap

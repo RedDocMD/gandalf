@@ -29,31 +29,26 @@ import qualified Data.Set                as Set
 import           Structure               (Boundary (..), Coordinate (..),
                                            Path (..), PathKind (..))
 
--- | error requires Text (relude's Prelude), while the rest of this module
--- builds messages as String; this is the single conversion point.
+-- | relude's error wants Text; single conversion point for this module.
 geomError :: String -> a
 geomError = error . toText
 
--- | A closed polygonal ring in database units - the on-layer outline a
--- Boundary or Path resolves to. 'boundaryToPolygon' and 'pathToPolygon' are
--- the only ways to build one, so every Polygon traces back to a real GDS
--- element.
+-- | A closed polygonal ring in database units - the on-layer outline of a
+-- Boundary or Path. Only 'boundaryToPolygon' and 'pathToPolygon' build one.
 newtype Polygon = Polygon (NonEmpty Coordinate)
   deriving (Show, Eq, Ord)
 
--- | The ordered ring of coordinates a Polygon traces, closing back to its
--- start (first == last) - e.g. for rendering a Polygon outside this module.
+-- | The ring of coordinates a Polygon traces, closing back to its start.
 polygonVertices :: Polygon -> [Coordinate]
 polygonVertices (Polygon cs) = toList cs
 
--- | A Boundary's Xy points already form a closed ring per the GDS spec
--- (the first and last point coincide), so they carry over unchanged.
+-- | A Boundary's Xy points already form a closed ring per the GDS spec.
 boundaryToPolygon :: Boundary -> Polygon
 boundaryToPolygon b = case nonEmpty b.coords of
   Just cs -> Polygon cs
   Nothing -> geomError "boundaryToPolygon: Boundary has no coordinates"
 
--- | The unit direction vector from one coordinate to another.
+-- | Unit direction vector from one coordinate to another.
 unitVector :: Coordinate -> Coordinate -> (Double, Double)
 unitVector s e
   | len == 0  = geomError "pathToPolygon: path start and end coincide"
@@ -63,20 +58,19 @@ unitVector s e
     dy  = fromIntegral (e.y - s.y)
     len = sqrt (dx * dx + dy * dy)
 
--- | Rotates a vector 90 degrees counter-clockwise.
 perpendicular :: (Double, Double) -> (Double, Double)
 perpendicular (dx, dy) = (-dy, dx)
 
--- | Moves a coordinate along a direction vector by the given distance,
--- rounding back to the integer GDS grid.
+-- | Moves a coordinate along a direction vector by a distance, rounding
+-- back to the integer GDS grid.
 offsetBy :: Coordinate -> (Double, Double) -> Double -> Coordinate
 offsetBy c (dx, dy) dist = Coordinate
   { x = c.x + round (dx * dist)
   , y = c.y + round (dy * dist)
   }
 
--- | The four corners of the rectangle a straight, unrounded stroke of the
--- given half-width sweeps out between 's' and 'e'.
+-- | The four corners of the rectangle an unrounded stroke of the given
+-- half-width sweeps out between 's' and 'e'.
 strokeRectangle :: Coordinate -> Coordinate -> Double -> NonEmpty Coordinate
 strokeRectangle s e halfWidth =
   eLeft :| [eRight, sRight, sLeft, eLeft]
@@ -87,16 +81,9 @@ strokeRectangle s e halfWidth =
     sRight = offsetBy s perp (-halfWidth)
     sLeft  = offsetBy s perp halfWidth
 
--- | Converts a Path into the polygon it traces out, per the geometry each
--- GDS PATHTYPE specifies:
---
---   * Flush - ends are cut off exactly at the given start\/end points.
---   * Extended - ends square off half the path width beyond each point.
---   * VariableExtended - ends square off by explicit, independently chosen
---     distances at the start and the end.
---
--- Round paths are not supported - semicircular caps can't be represented
--- exactly as a polygon, so this errors rather than silently approximating.
+-- | Converts a Path to the polygon it traces, per its GDS PATHTYPE (Flush,
+-- Extended, VariableExtended). Errors on Round: semicircular caps can't be
+-- represented exactly as a polygon.
 pathToPolygon :: Path -> Polygon
 pathToPolygon p = Polygon $ case p.kind of
   Flush -> strokeRectangle p.start p.end halfWidth
@@ -113,21 +100,15 @@ pathToPolygon p = Polygon $ case p.kind of
     halfWidth = fromIntegral p.width / 2
     dir       = unitVector p.start p.end
 
--- | The placement an SREF applies to the geometry of the cell it
--- references: a reflection about the x-axis (applied first, if set), then
--- a counter-clockwise rotation, then a translation - the standard GDSII
--- STRANS\/ANGLE\/SREF composition order. (GDS also allows a magnification
--- factor, but this codebase doesn't currently parse one off a CellRef, so
--- there's nothing to apply here.)
+-- | An SREF's placement: x-axis reflection (if set), then counter-clockwise
+-- rotation, then translation - the STRANS\/ANGLE\/SREF composition order.
+-- Magnification isn't parsed off CellRef, so it isn't applied here.
 data Transform = Transform
   { mirrorX  :: Bool
   , angleDeg :: Double
   , offset   :: Coordinate
   }
 
--- | Applies a Transform to every vertex of a Polygon - e.g. to place a
--- referenced cell's shapes into the coordinate system of the cell that
--- SREFs it.
 transformPolygon :: Transform -> Polygon -> Polygon
 transformPolygon t (Polygon cs) = Polygon (fmap (transformCoordinate t) cs)
 
@@ -212,9 +193,8 @@ boundIntersections = runSweepLine . sort . concatMap rectangleEvents
 
 data SweepState a = SweepState
   { events        :: [SweepEvent a]
-  -- Rectangles are keyed by their y-interval, but distinct rectangles can
-  -- share an identical y-interval while open at the same time, so each key
-  -- holds every currently-open rectangle with that interval.
+  -- Keyed by y-interval; a key holds every currently-open rectangle
+  -- sharing that interval, since more than one can be open at once.
   , openEdges     :: IM.IntervalMap Int (NonEmpty a)
   , intersections :: DL.DList (a, a)
   }
@@ -262,10 +242,9 @@ runSweepLine evs = evalState runSweepLineImpl initState
 
 -- === Rectilinear polygon intersection =====================================
 
--- | An (x, y) pair used internally by the sweep below. Kept separate from
--- 'Coordinate' (which has no 'Ord' instance) so this algorithm's internals
--- don't force a spatially-meaningless derived order onto the public
--- GDS-domain type; conversion happens only at the two boundaries.
+-- | An (x, y) pair for the sweep below. Kept separate from 'Coordinate'
+-- (no 'Ord' instance) so this algorithm doesn't impose a spatial order on
+-- the public GDS-domain type; converted only at the two boundaries.
 type Point = (Int, Int)
 
 pointToCoord :: Point -> Coordinate
@@ -287,12 +266,8 @@ data HorizontalEdge = HorizontalEdge
   }
   deriving (Show, Eq)
 
--- | Splits a rectilinear polygon's ring into its vertical and horizontal
--- edges, sharing the validation every edge must pass (axis-aligned,
--- non-degenerate) between 'verticalEdges' (the intersection sweep below
--- only needs verticals, since a rectilinear polygon's y cross-section only
--- changes at those x's) and 'horizontalEdges' (needed only by
--- 'edgeTouches').
+-- | Splits a rectilinear polygon's ring into vertical and horizontal edges,
+-- validating each is axis-aligned and non-degenerate.
 polygonEdges :: Polygon -> ([VerticalEdge], [HorizontalEdge])
 polygonEdges (Polygon coords) = foldMap classify (zip cs (NE.tail coords))
   where
@@ -313,23 +288,15 @@ verticalEdges = fst . polygonEdges
 horizontalEdges :: Polygon -> [HorizontalEdge]
 horizontalEdges = snd . polygonEdges
 
--- | Whether two closed integer intervals overlap over a range of positive
--- length - sharing only an endpoint (zero length) doesn't count.
+-- | Whether two closed integer intervals overlap with positive length -
+-- sharing only an endpoint doesn't count.
 overlapsPositively :: Int -> Int -> Int -> Int -> Bool
 overlapsPositively aLo aHi bLo bHi = max aLo bLo < min aHi bHi
 
 -- | Whether two rectilinear polygons abut along a shared boundary segment
--- of positive length - true edge-to-edge contact, as distinct from merely
--- touching at a single corner point. Only collinear edges (both vertical at
--- the same x, or both horizontal at the same y) can ever share more than a
--- point, so this checks every such pair for a positive-length overlap; a
--- vertical edge can only ever meet a horizontal one at a single point,
--- which is exactly the corner-touch case this is meant to exclude.
---
--- Independent of 'polygonIntersection': it neither implies nor is implied
--- by a genuine area overlap (e.g. one polygon nested entirely inside
--- another, sharing no boundary, overlaps in area without this being true).
--- A caller wanting "touching or overlapping" checks both explicitly.
+-- of positive length, as distinct from touching at a single corner.
+-- Independent of 'polygonIntersection' (e.g. nesting overlaps in area
+-- without sharing a boundary) - a caller wanting either checks both.
 edgeTouches :: Polygon -> Polygon -> Bool
 edgeTouches polyA polyB = verticalTouch || horizontalTouch
   where
@@ -340,17 +307,14 @@ edgeTouches polyA polyB = verticalTouch || horizontalTouch
       [ overlapsPositively a.hXLo a.hXHi b.hXLo b.hXHi
       | a <- horizontalEdges polyA, b <- horizontalEdges polyB, a.hY == b.hY ]
 
--- | Groups vertical edges by their x coordinate, for slab-by-slab lookup
--- during the sweep.
+-- | Groups vertical edges by x, for slab-by-slab lookup during the sweep.
 edgesByX :: [VerticalEdge] -> Map.Map Int [VerticalEdge]
 edgesByX = Map.fromListWith (++) . map (\e -> (e.vX, [e]))
 
 -- | A polygon's ray-casting parity state at the sweep's current x: 'flips'
--- is the set of y coordinates where inside/outside parity toggles - XORing
--- a vertical edge's [yLo,yHi) range into the running parity is exactly
--- toggling membership of its two endpoints. 'intervals' is the same state
--- unpacked into the current maximal inside-y-ranges, by pairing up the
--- sorted flip points; only recomputed when 'flips' actually changes.
+-- is the set of y coordinates where inside/outside parity toggles;
+-- 'intervals' is the same state as inside-y-ranges, from pairing up the
+-- sorted flips - recomputed only when 'flips' changes.
 data PolySweep = PolySweep
   { flips     :: !(Set.Set Int)
   , intervals :: ![(Int, Int)]
@@ -375,8 +339,8 @@ applyEdgesAt sw edges = PolySweep { flips = flips', intervals = pairUp (Set.toAs
     flips' = foldl' (\s e -> toggleY (toggleY s e.vYLo) e.vYHi) sw.flips edges
 
 -- | Intersects two sorted, disjoint interval lists, keeping only overlaps
--- with positive width - a zero-width touch does not count as a true
--- intersection (see 'polygonIntersection').
+-- with positive width (a zero-width touch doesn't count, see
+-- 'polygonIntersection').
 twoPointerIntersect :: [(Int, Int)] -> [(Int, Int)] -> [(Int, Int)]
 twoPointerIntersect = go
   where
@@ -390,8 +354,8 @@ twoPointerIntersect = go
         hi = min aHi bHi
         overlap = [(lo, hi) | lo < hi]
 
--- | Subtracts sorted, disjoint interval list b from sorted, disjoint
--- interval list a, returning the sorted, disjoint remainder.
+-- | Subtracts sorted, disjoint interval list b from a, returning the
+-- sorted, disjoint remainder.
 subtractIntervals :: [(Int, Int)] -> [(Int, Int)] -> [(Int, Int)]
 subtractIntervals []  _ = []
 subtractIntervals xs [] = xs
@@ -411,11 +375,10 @@ insertEdge = Map.insertWith
 
 -- | Emits the vertical boundary edges at x, from the symmetric difference
 -- between the intersection's y-coverage just left of x ('prevSlab') and
--- just right of it ('thisSlab'). A range present only on the left means the
--- region ends here (a right edge, drawn upward, interior to its west); a
--- range present only on the right means the region starts here (a left
--- edge, drawn downward, interior to its east) - the convention for a
--- counter-clockwise-oriented boundary (interior always on an edge's left).
+-- just right ('thisSlab'). A range only on the left ends the region here
+-- (a right edge, drawn upward); a range only on the right starts it (a
+-- left edge, drawn downward) - the counter-clockwise convention (interior
+-- on an edge's left).
 addSeamEdges :: Int -> [(Int, Int)] -> [(Int, Int)] -> Map.Map Point Point -> Map.Map Point Point
 addSeamEdges x prevSlab thisSlab adj0 =
   foldl' addDown (foldl' addUp adj0 ending) starting
@@ -425,10 +388,8 @@ addSeamEdges x prevSlab thisSlab adj0 =
     addUp   adj (p, q) = insertEdge (x, p) (x, q) adj
     addDown adj (p, q) = insertEdge (x, q) (x, p) adj
 
--- | Emits the horizontal boundary edges of the intersection's coverage
--- across the slab (x, xNext): one bottom (rightward) and one top (leftward)
--- edge per inside y-interval, the counter-clockwise convention for a
--- rectangle's bottom/top sides.
+-- | Emits the horizontal boundary edges across slab (x, xNext): one bottom
+-- (rightward) and one top (leftward) edge per inside y-interval.
 addHorizontalEdges :: Int -> Int -> [(Int, Int)] -> Map.Map Point Point -> Map.Map Point Point
 addHorizontalEdges x xNext slab adj0 = foldl' addPair adj0 slab
   where
@@ -442,16 +403,14 @@ data SweepAcc = SweepAcc
   , accAdjacency :: !(Map.Map Point Point)
   }
 
--- | Pairs each element of a list with the next one, if any.
 withNext :: [a] -> [(a, Maybe a)]
 withNext []                 = []
 withNext [x]                = [(x, Nothing)]
 withNext (x : rest@(y : _)) = (x, Just y) : withNext rest
 
--- | Sweeps left to right across the union of both polygons' vertical-edge x
--- coordinates, building the adjacency map of the intersection region's
--- boundary: each key is a boundary vertex, its value the next vertex along
--- the boundary in a consistent (counter-clockwise) direction.
+-- | Sweeps left to right across the union of both polygons' vertical-edge
+-- x coordinates, building the intersection boundary's adjacency map: each
+-- key is a boundary vertex, its value the next vertex (counter-clockwise).
 runXSweep :: Polygon -> Polygon -> Map.Map Point Point
 runXSweep polyA polyB = (foldl' step initAcc (withNext xs)).accAdjacency
   where
@@ -481,9 +440,9 @@ runXSweep polyA polyB = (foldl' step initAcc (withNext xs)).accAdjacency
           Nothing    -> withSeam
 
 -- | Traces the boundary adjacency map into closed loops, consuming each
--- vertex exactly once. Each loop is either an outer boundary (traversed
--- counter-clockwise, by construction) or - if the intersection encloses a
--- gap neither polygon covers - a hole (clockwise); see 'polygonIntersection'.
+-- vertex exactly once. Each loop is an outer boundary (counter-clockwise,
+-- by construction) or - if the intersection encloses a gap - a hole
+-- (clockwise); see 'polygonIntersection'.
 traceLoops :: Map.Map Point Point -> [[Point]]
 traceLoops adj
   | Map.null adj = []
@@ -508,16 +467,16 @@ rotate n xs = take len (drop (n `mod` len) (cycle xs))
   where
     len = length xs
 
--- | Twice the signed (shoelace) area of a closed loop of vertices: positive
--- for a counter-clockwise loop, negative for clockwise.
+-- | Twice the signed (shoelace) area of a closed loop: positive for
+-- counter-clockwise, negative for clockwise.
 signedArea2x :: [Point] -> Int
 signedArea2x pts = sum (zipWith cross pts (rotate 1 pts))
   where
     cross (x1, y1) (x2, y2) = x1 * y2 - x2 * y1
 
--- | Drops vertices that sit in the middle of a straight run (incoming and
--- outgoing edge directions match), left behind at slab boundaries where an
--- intersection's y-coverage doesn't actually change.
+-- | Drops vertices in the middle of a straight run (incoming and outgoing
+-- edge directions match), left behind at slabs where y-coverage doesn't
+-- actually change.
 simplifyLoop :: [Point] -> [Point]
 simplifyLoop pts =
   [ p | (prev, p, next) <- zip3 (rotate (-1) pts) pts (rotate 1 pts)
@@ -533,22 +492,16 @@ pointsToPolygon (p : ps) = Polygon (c :| (map pointToCoord ps ++ [c]))
     c = pointToCoord p
 
 -- | The true geometric intersection of two rectilinear polygons, as one
--- simple polygon per connected component of the overlap (commonly a single
--- element, but the intersection of two simple rectilinear polygons can
--- genuinely split into several disjoint pieces). Returns 'Nothing' if the
--- polygons don't actually overlap - a zero-area touch counts as no overlap.
+-- simple polygon per connected component of the overlap. Returns 'Nothing'
+-- if they don't overlap (a zero-area touch counts as no overlap).
 --
--- Errors if a component of the intersection encloses a hole: even a list
--- of polygons can't represent that (each element is a single ring), and
--- while it can't arise from either input alone (both are simple, hole-free
--- rings), it can arise from their intersection - e.g. two C/bracket-shaped
--- rectilinear polygons overlapping to enclose a gap neither one covers.
--- This is expected to be rare for real GDS shapes; failing loudly here
--- matches 'pathToPolygon''s handling of Round path caps - another case
--- this module refuses to approximate rather than silently getting wrong.
+-- Precondition: the two polygons' bounding boxes are already known to
+-- overlap (see 'boundIntersections'); not re-checked here.
 --
--- Assumes the two polygons' bounding boxes are already known to overlap;
--- does not re-check that itself (see 'boundIntersections').
+-- Errors if a component of the intersection encloses a hole - not
+-- representable as a single ring, and possible even though both inputs are
+-- hole-free (e.g. two bracket-shaped polygons overlapping around a gap
+-- neither covers).
 polygonIntersection :: Polygon -> Polygon -> Maybe [Polygon]
 polygonIntersection polyA polyB = case traceLoops (runXSweep polyA polyB) of
   []    -> Nothing
@@ -557,10 +510,7 @@ polygonIntersection polyA polyB = case traceLoops (runXSweep polyA polyB) of
     | otherwise -> geomError "polygonIntersection: intersection encloses a hole, not representable"
 
 -- | True if two polygons trace the same cyclic boundary, regardless of
--- starting vertex or traversal direction - neither is part of a Polygon's
--- contract (in particular, 'polygonIntersection''s output), so this is the
--- right notion of equality for comparing a computed polygon against an
--- expected shape.
+-- starting vertex or traversal direction.
 samePolygon :: Polygon -> Polygon -> Bool
 samePolygon (Polygon a) (Polygon b) =
   ringA `elem` rotations ringB || ringA `elem` rotations (reverse ringB)

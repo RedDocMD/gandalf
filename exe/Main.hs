@@ -166,9 +166,8 @@ runDump path cellName = do
       selected = maybe cells (\nm -> filter (\(Cell cnm _ _ _ _) -> cnm == nm) cells) cellName
   mapM_ putStrLn (renderForest (map cellTree selected))
 
--- | A label together with the labels nested beneath it - used to render
--- parsed Cells with the same box-drawing style as the raw record dump used
--- to, rather than Structure's own (flat) Show instances.
+-- | A label together with the labels nested beneath it, for rendering
+-- parsed Cells in the same box-drawing style as the raw record dump.
 data Tree = Tree String [Tree]
 
 cellTree :: Cell -> Tree
@@ -225,8 +224,7 @@ showCoordinate (Coordinate cx cy) = "(" ++ show cx ++ ", " ++ show cy ++ ")"
 showCoordinates :: [Coordinate] -> String
 showCoordinates cs = "[" ++ intercalate ", " (map showCoordinate cs) ++ "]"
 
--- | A terser stand-in for GdsStransFlags's derived Show, dropping the type
--- name and record-field boilerplate.
+-- | A terser stand-in for GdsStransFlags's derived Show.
 showStrans :: GdsStransFlags -> String
 showStrans (GdsStransFlags mx am aa) =
   "{mirrorX=" ++ show mx ++ ", absMag=" ++ show am ++ ", absAngle=" ++ show aa ++ "}"
@@ -235,8 +233,7 @@ showPresentation :: GdsPresentationFlags -> String
 showPresentation (GdsPresentationFlags f vj hj) =
   "{font=" ++ show f ++ ", vertJust=" ++ show vj ++ ", horizJust=" ++ show hj ++ "}"
 
--- | Renders a forest using the same box-drawing style as the Unix `tree`
--- command: "├── " / "└── " connectors and "│   " / "    " continuations.
+-- | Renders a forest in the style of the Unix `tree` command.
 renderForest :: [Tree] -> [String]
 renderForest ts = concatMap (\(t, isLast) -> renderTree "" isLast t) (markLast ts)
 
@@ -260,14 +257,11 @@ runElstr path = do
   mapM_ putStrLn (renderElstr (collectUnitShapes forest))
 
 -- | For each hierarchical unit kind (BGNSTR, BOUNDARY, ...), the distinct
--- sets of immediate sub-unit kinds seen across all its instances in the
--- file, each paired with a per-element count: for every sub-unit kind in
--- the set, the largest number of times it occurred within a single
--- instance, among all instances sharing that exact set (e.g. if one
--- BGNSTR has three BOUNDARY children and another sharing the same
--- {STRNAME, BOUNDARY} set has only one, the recorded max for BOUNDARY is
--- 3). The closing record (ENDEL/ENDSTR/ENDLIB) is always present and so
--- isn't interesting; it's excluded from the shape and the counts.
+-- sets of immediate sub-unit kinds seen across its instances, each paired
+-- with the max per-element count seen among instances sharing that set
+-- (e.g. if one BGNSTR has three BOUNDARY children and another sharing the
+-- same {STRNAME, BOUNDARY} set has only one, the recorded max is 3). The
+-- always-present closing record (ENDEL/ENDSTR/ENDLIB) is excluded.
 collectUnitShapes :: [AST] -> Map.Map GdsRecord (Map.Map (Set.Set GdsRecord) (Map.Map GdsRecord Int))
 collectUnitShapes forest = Map.fromListWith (Map.unionWith (Map.unionWith max))
   [ (kind, Map.singleton shape counts) | (kind, shape, counts) <- unitShapes forest ]
@@ -301,17 +295,13 @@ runPolycount path cellName layerIdx layerKind = do
     Nothing -> error ("polycount: no such cell " ++ show cellName)
 
 -- | Total boundary + path element count on a given layer for every cell,
--- including elements pulled in transitively through SREFs. Built by
--- knot-tying: each cell's count looks up the memoized counts of the
--- cells it references from the very map being constructed, so laziness
--- resolves the recursion without an explicit topological sort or
--- traversal order (this would only loop if the library had a cyclic
--- SREF chain, which GDS doesn't permit).
---
--- This must be built with Data.Map.Lazy, not .Strict: Strict's fromList
--- forces each value into WHNF as it inserts, which demands the
--- not-yet-finished map's spine before the knot can close and throws
--- <<loop>> even for a plain DAG of references.
+-- including elements pulled in through SREFs. Built by knot-tying: each
+-- cell's count looks up the memoized counts of cells it references from
+-- the very map being constructed, so laziness resolves the recursion
+-- without a topological sort (would only loop on a cyclic SREF chain,
+-- which GDS doesn't permit). Must use Data.Map.Lazy: Strict's fromList
+-- forces each value into WHNF while inserting, demanding the unfinished
+-- map's spine and throwing <<loop>>.
 polycounts :: (Layer -> Bool) -> [Cell] -> Map.Map String Int
 polycounts matches cells = counts
   where
@@ -334,10 +324,9 @@ runIntersections path cellName l1Idx l1Kind l2Idx l2Kind outputSvg = do
           ps1      = layerPolygonsOn grouped l1Idx l1Kind
           ps2      = layerPolygonsOn grouped l2Idx l2Kind
           boxPairs = boundIntersections (ps1 ++ ps2)
-          -- boundIntersections only guarantees the pairs' bounding rectangles
-          -- overlap; polygonIntersection narrows that down to the pairs (and
-          -- exact regions) that truly overlap. Each pair is only intersected
-          -- once and reused for both the count and the diagram below.
+          -- boxPairs only guarantees bounding-rectangle overlap;
+          -- polygonIntersection narrows to true overlaps, computed once
+          -- and reused for both the count and the diagram below.
           truePairs         = catMaybes [ polygonIntersection p1 p2 | (p1, p2) <- boxPairs ]
           intersectionPolys = concat truePairs
       putStr $ renderIntersectionSummary
@@ -353,13 +342,13 @@ runIntersections path cellName l1Idx l1Kind l2Idx l2Kind outputSvg = do
           putStrLn ("SVG diagram written to " ++ svgPath)
     Nothing -> error ("intersections: no such cell " ++ show cellName)
 
--- | The plain Polygons - parent labels dropped - on a given layer/kind of a
+-- | The plain Polygons (parent labels dropped) on a given layer/kind of a
 -- Relationship.layerPolygons grouping.
 layerPolygonsOn :: Map.Map Layer [LabeledPolygon] -> Int -> Int -> [Polygon]
 layerPolygonsOn grouped idx kind =
   [ p | LabeledPolygon p _ <- Map.findWithDefault [] (Layer idx kind) grouped ]
 
--- | Renders label/count rows as a small aligned table, e.g.:
+-- | Renders label/count rows as an aligned table, e.g.:
 --
 -- > Layer 1 shapes             : 12
 -- > Bounding-box intersections : 5
@@ -379,23 +368,18 @@ runConnectivity path cellName layerMapPath = do
     Just root -> putStr (renderConnectivitySummary (connectivity lm cells root))
     Nothing   -> error ("connectivity: no such cell " ++ show cellName)
 
--- | The unordered pair of named layers each connected Polygon pair spans,
--- e.g. ("li1", "poly") for a Polygon on "poly" connected to one on "li1" -
--- sorted so the same pair of layers always groups together regardless of
--- which side of the connection either Polygon happened to be on.
+-- | The unordered pair of named layers a connected Polygon pair spans,
+-- sorted so the same pair always groups together regardless of side.
 canonicalLayerPair :: String -> String -> (String, String)
 canonicalLayerPair a b
   | a <= b    = (a, b)
   | otherwise = (b, a)
 
--- | Every distinct physical connection found between two named layers
--- (Relationship.connectivity's adjacency list is symmetric - each
--- connection appears once from either endpoint's perspective - so only
--- the a < b half of each pair is kept, to count every connection exactly
--- once), grouped into "intra" (a Polygon connected to another on the very
--- same named layer, i.e. a direct connection) and "inter" (two different
--- named layers, bridged by a cross connection's via) counts, plus the
--- grand total connection count.
+-- | Every distinct physical connection between two named layers
+-- (Relationship.connectivity's adjacency list is symmetric, so only the
+-- a < b half of each pair is kept), grouped into "intra" (same named
+-- layer) and "inter" (bridged by a cross connection) counts, plus the
+-- grand total.
 summarizeConnectivity :: Map.Map LayerPolygon [LayerPolygon] -> ([(String, Int)], [((String, String), Int)], Int)
 summarizeConnectivity conn = (intra, inter, length edges)
   where
@@ -412,9 +396,8 @@ summarizeConnectivity conn = (intra, inter, length edges)
     intra = [ (lyrA, n) | ((lyrA, lyrB), n) <- Map.toAscList counts, lyrA == lyrB ]
     inter = [ (pair, n) | (pair, n) <- Map.toAscList counts, fst pair /= snd pair ]
 
--- | Renders rows of cells as a simple space-aligned table with a header
--- row, each column padded to the width of its widest cell (header
--- included).
+-- | Renders rows as a space-aligned table with a header row, each column
+-- padded to its widest cell (header included).
 renderTable :: [String] -> [[String]] -> [String]
 renderTable headerRow rows = map renderRow (headerRow : rows)
   where
@@ -422,8 +405,8 @@ renderTable headerRow rows = map renderRow (headerRow : rows)
     renderRow cells = intercalate "  " (zipWith pad cells widths)
     pad cell w = cell ++ replicate (w - length cell) ' '
 
--- | Renders the intra-layer and inter-layer connectivity tables, plus the
--- total connection count, e.g.:
+-- | Renders the intra/inter-layer connectivity tables plus the total
+-- connection count, e.g.:
 --
 -- > Intra-layer connectivity:
 -- >   Layer  Connections
@@ -457,18 +440,13 @@ runConnectedComponents path cellName layerMapPath = do
     Just root -> putStr (renderComponentsSummary (connectivity lm cells root))
     Nothing   -> error ("components: no such cell " ++ show cellName)
 
--- | The number of distinct connected components (nets) - the number of
--- distinct component ids 'Relationship.connectedComponents' assigns,
--- found by deduplicating them through a Set rather than relying on them
--- being contiguous.
+-- | The number of distinct connected components (nets), from the distinct
+-- component ids 'Relationship.connectedComponents' assigns.
 numComponents :: Map.Map LayerPolygon Int -> Int
 numComponents = Set.size . Set.fromList . Map.elems
 
--- | Renders the node count (every Polygon with at least one connection -
--- 'Relationship.connectivity' never keys an isolated Polygon), the edge
--- count (reusing 'summarizeConnectivity''s already-deduplicated total,
--- since its adjacency list is symmetric), and the connected-component
--- count, e.g.:
+-- | Renders the node count, edge count, and connected-component count,
+-- e.g.:
 --
 -- > Nodes                : 42
 -- > Edges                : 37
@@ -493,10 +471,9 @@ runPinDump path cellName layerMapPath mergeInstances = do
       | otherwise       -> mapM_ putStrLn (renderPinsByInstance lm (pinsByInstance lm cells root))
     Nothing -> error ("pins: no such cell " ++ show cellName)
 
--- | A Layer's display label: the name of the LayerMap entry with exactly
--- this (layer, datatype) pair, plus the raw (index, kind) numbers in
--- brackets - e.g. "li1.pin (67, 16)" - or, if no such entry exists, just
--- the bracketed numbers.
+-- | A Layer's display label: the matching LayerMap entry's name plus the
+-- raw (index, kind) numbers in brackets, e.g. "li1.pin (67, 16)", or just
+-- the bracketed numbers if no entry matches.
 layerLabel :: LayerMap -> Layer -> String
 layerLabel (LayerMap entries _ _) (Layer idx knd) =
   maybe "" (++ " ") nameM ++ "(" ++ show idx ++ ", " ++ show knd ++ ")"
@@ -504,13 +481,10 @@ layerLabel (LayerMap entries _ _) (Layer idx knd) =
     nameM = listToMaybe
       [ nm | LayerEntry nm lyrNum dt <- entries, lyrNum == idx, dt == knd ]
 
--- | Renders every instance's Pins (Relationship.pinsByInstance's
--- grouping - the root Cell's own name, or an SREF-placement-qualified
--- label for each transitively-reached instance, so two placements of the
--- very same Cell are dumped as separate groups) as a header line per
--- instance followed by one indented line per Pin naming its net, Layer
--- (see 'layerLabel'), and tracing its Polygon's vertex ring, instances in
--- ascending order of their label, with a blank line between instances.
+-- | Renders every instance's Pins (per Relationship.pinsByInstance), one
+-- header line per instance followed by one indented line per Pin naming
+-- its net, Layer (see 'layerLabel'), and Polygon vertex ring, instances in
+-- ascending label order with a blank line between them.
 renderPinsByInstance :: LayerMap -> Map.Map String [Pin] -> [String]
 renderPinsByInstance lm grouped = concatMap renderInstance (Map.toAscList grouped)
   where
@@ -519,13 +493,9 @@ renderPinsByInstance lm grouped = concatMap renderInstance (Map.toAscList groupe
     renderPin (Pin lbl (LabeledPolygon poly _) lyr) =
       "  " ++ lbl ++ "  layer=" ++ layerLabel lm lyr ++ "  " ++ showCoordinates (polygonVertices poly)
 
--- | Renders every Cell's Pins once, treating every instantiation (direct
--- or via SREF) of the same Cell as the same: Pins are grouped by their
--- owning Cell's bare name (LabeledPolygon.parent) rather than by instance,
--- and deduplicated by (net name, Layer) - since a Cell's set of pins is a
--- property of its own definition, identical across every instantiation -
--- without a Polygon boundary, which would differ, meaninglessly, per
--- instance.
+-- | Renders every Cell's Pins once, treating every instantiation as the
+-- same: grouped by owning Cell name and deduplicated by (net name,
+-- Layer), without a per-instance Polygon boundary.
 renderPinsByCell :: LayerMap -> [Pin] -> [String]
 renderPinsByCell lm allPins = concatMap renderCell (Map.toAscList grouped)
   where
@@ -547,8 +517,7 @@ runNetlist path cellName layerMapPath componentsPath outputPin = do
     Nothing   -> error ("netlist: no such cell " ++ show cellName)
 
 -- | Renders every <component.pin> -- <component.pin> connection, one per
--- line, in the Set's own ascending order (each pair already canonicalized
--- by 'Relationship.netlist', so this is a stable, duplicate-free order).
+-- line, in the Set's ascending order.
 renderNetlist :: Set.Set ((String, String), (String, String)) -> [String]
 renderNetlist = map renderEdge . Set.toList
   where
@@ -566,11 +535,9 @@ runLabels path = do
   let cells = parseCells (buildForest (parseAllRecords contents))
   mapM_ putStrLn (renderLabels cells)
 
--- | Every string block's label (the STRING record's payload), one section
--- per Cell in the file, listing only the Text elements the Cell directly
--- contains - elements pulled in transitively through an SREF are attributed
--- to the Cell that actually defines them, not expanded into every Cell that
--- references them.
+-- | Every string block's label, one section per Cell, listing only the
+-- Text elements the Cell directly contains (SREF-pulled elements are
+-- attributed to the Cell that defines them, not the ones referencing it).
 renderLabels :: [Cell] -> [String]
 renderLabels = concatMap renderCellLabels
 
@@ -581,10 +548,8 @@ renderCellLabels (Cell nm _ _ txts _) =
     renderLabel (TextDescription _ _ val _ _ _ _) = "  " ++ val
 
 -- | Maps GDS database units onto SVG pixels: scaled to fit the larger of
--- the drawing's width/height into 'targetSize' pixels, with 'svgPadding'
--- pixels of margin, and the y axis flipped - GDS y grows upward (see
--- 'Geom.boundingRect''s convention, where "top" is the *maximum* y), SVG y
--- grows downward.
+-- the drawing's width/height into 'targetSize' pixels with 'svgPadding'
+-- margin, y axis flipped (GDS y grows upward, SVG y downward).
 data SvgTransform = SvgTransform
   { svgScale   :: Double
   , svgMinX    :: Int
@@ -604,8 +569,8 @@ mkTransform (minX, _, maxX, maxY) = SvgTransform
   }
 
 -- | The (minX, minY, maxX, maxY) bounds of every vertex of every given
--- polygon, defaulting to a fixed placeholder box when there are none (e.g.
--- an empty cell), so the SVG is still well-formed rather than crashing.
+-- polygon, defaulting to a placeholder box when there are none (e.g. an
+-- empty cell).
 boundingBoxOf :: [Polygon] -> (Int, Int, Int, Int)
 boundingBoxOf polys = case concatMap polygonVertices polys of
   []                     -> (0, 0, 100, 100)
@@ -626,7 +591,6 @@ canvasSize t (minX, minY, maxX, maxY) =
   , fromIntegral (maxY - minY) * svgScale t + 2 * svgPadding t
   )
 
--- | A single filled/stroked <polygon> tracing a Polygon's ring.
 svgPolygon :: SvgTransform -> String -> String -> Polygon -> String
 svgPolygon t fill stroke p =
   "  <polygon points=\"" ++ points ++ "\" fill=\"" ++ fill
@@ -634,9 +598,8 @@ svgPolygon t fill stroke p =
   where
     points = unwords [ printf "%.2f,%.2f" px py | c <- polygonVertices p, let (px, py) = transformPoint t c ]
 
--- | Renders the full SVG diagram: layer 1 shapes, then layer 2 shapes, then
--- the true intersection regions on top (so overlaps are visibly
--- highlighted), plus a small legend with per-layer shape counts.
+-- | Renders the full SVG diagram: layer 1, then layer 2, then true
+-- intersection regions on top, plus a legend with per-layer shape counts.
 renderSvg :: String -> [Polygon] -> [Polygon] -> [Polygon] -> String
 renderSvg cellName layer1 layer2 intersections = unlines $
   [ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"

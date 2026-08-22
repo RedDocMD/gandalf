@@ -9,10 +9,8 @@ import           Data.Serialize.Get         (getInt16be, getInt32be,
 import           Data.Time                  (LocalTime (..), TimeOfDay (..),
                                              fromGregorian)
 
--- | Types that can be decoded from the single-byte codes GDSII uses for
--- record types and data types. The mapping is failable since not every
--- byte value corresponds to a known/supported code; the error names the
--- type being decoded.
+-- | Decodes the single-byte codes GDSII uses for record/data types. Failable
+-- since not every byte value has a known code.
 class FromGdsWord8 a where
   fromGdsWord8 :: Word8 -> Either String a
 
@@ -127,8 +125,7 @@ data GdsRecordT =
   | GdsEndExtnT Int
   deriving (Show)
 
--- | Recovers the record type of a decoded record, discarding its payload.
--- Useful for grouping/summarizing records by kind.
+-- | The record type of a decoded record, discarding its payload.
 gdsRecordKind :: GdsRecordT -> GdsRecord
 gdsRecordKind r = case r of
   GdsHeaderT{}       -> GdsHeader
@@ -198,8 +195,8 @@ gdsRealToDouble w = sign * fraction * (16 ** exponent)
     mantissa = fromIntegral (w .&. 0x00FFFFFFFFFFFFFF)
     fraction = mantissa / (2 ** 56)
 
--- STRANS bits are numbered from the MSB (spec bit 0); the field is parsed as
--- a plain 16-bit value, so spec bit N is testBit value (15 - N).
+-- STRANS bits are numbered from the MSB (spec bit 0), so spec bit N is
+-- testBit value (15 - N).
 decodeGdsStransFlags :: Int -> GdsStransFlags
 decodeGdsStransFlags bits = GdsStransFlags
   { gdsMirrorX  = testBit bits 15
@@ -207,10 +204,9 @@ decodeGdsStransFlags bits = GdsStransFlags
   , gdsAbsAngle = testBit bits 1
   }
 
--- PRESENTATION bits are numbered from the MSB (spec bit 0), same convention
--- as STRANS. Spec bits 10-11 hold the font number, 12-13 the vertical
--- justification (0 top, 1 middle, 2 bottom), 14-15 the horizontal
--- justification (0 left, 1 center, 2 right) -- i.e. value bits 5-4, 3-2, 1-0.
+-- Same MSB-numbered convention as STRANS. Spec bits 10-11 = font, 12-13 =
+-- vertical justification, 14-15 = horizontal justification, i.e. value
+-- bits 5-4, 3-2, 1-0.
 decodeGdsPresentationFlags :: Int -> GdsPresentationFlags
 decodeGdsPresentationFlags bits = GdsPresentationFlags
   { gdsFont      = (bits `shiftR` 4) .&. 0x3
@@ -218,8 +214,8 @@ decodeGdsPresentationFlags bits = GdsPresentationFlags
   , gdsHorizJust = bits .&. 0x3
   }
 
--- BgnLib/BgnStr timestamp field is years since 1900 (e.g. 126), but some
--- writers emit the full year (e.g. 2026); normalize both to a full year.
+-- | BgnLib/BgnStr timestamp field is years since 1900 (e.g. 126), but some
+-- writers emit the full year (e.g. 2026); normalizes to a full year either way.
 normalizeGdsYear :: Int -> Int
 normalizeGdsYear y
   | y < 1900  = y + 1900
@@ -262,9 +258,8 @@ parseCharEnum = DAP.anyWord8 <&> failToEnum
 parseGdsReal :: DAP.Parser Double
 parseGdsReal = parseWord64 <&> gdsRealToDouble
 
--- GDSII pads odd-length Ascii fields with a single trailing NUL; the spec
--- guarantees NUL only ever appears as that trailing pad, so this also
--- correctly strips it.
+-- | Strips the trailing NUL GDSII pads odd-length Ascii fields with (NUL
+-- never appears elsewhere per spec).
 parseAsciiString :: Int -> DAP.Parser String
 parseAsciiString len = DAP.take len <&> takeWhile (/= '\NUL') . decodeUtf8
 
@@ -279,9 +274,8 @@ parseRecordType = parseCharEnum
 parseDataType :: DAP.Parser GdsDataType
 parseDataType = parseCharEnum
 
--- Checks the payload's actual length/data-type against what's expected for
--- the record being parsed, then runs the parser or fails with a message
--- built from the mismatch.
+-- | Checks the payload's actual length/data-type against what's expected,
+-- then runs the parser or fails with a message describing the mismatch.
 parseChecked :: Int -> GdsDataType -> Int -> GdsDataType -> DAP.Parser a -> DAP.Parser a
 parseChecked expectedLen expectedType actualLen actualType p
   | actualLen == expectedLen && actualType == expectedType = p

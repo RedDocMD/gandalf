@@ -3,10 +3,9 @@
 {-# LANGUAGE OverloadedRecordDot   #-}
 
 -- | Relates a Cell's geometry to the Cells it comes from: for every layer,
--- the Polygons that live on it - including those pulled in transitively
--- through SREFs - each labeled with the Cell it was directly defined in.
--- Also relates named pin layers (per a LayerMap) to the text-labeled
--- Polygons that are their pins.
+-- the Polygons on it (including those pulled in through SREFs), each
+-- labeled with the Cell it was directly defined in. Also relates named pin
+-- layers (per a LayerMap) to the text-labeled Polygons that are their pins.
 module Relationship
   ( LabeledPolygon (..)
   , layerPolygons
@@ -38,47 +37,37 @@ import           Structure       (Boundary (..), Cell (..), CellRef (..),
                                   Coordinate (..), Layer (..), Path (..),
                                   TextDescription (..))
 
--- | A Polygon paired with the name of the Cell it was directly defined in:
--- the root Cell passed to 'layerPolygons' if it's one of that Cell's own
--- Boundary/Path elements, or the name of whichever Cell it was pulled in
--- from transitively through one or more levels of SREF. An SREF's own
--- 'name' field is exactly the name of the Cell it references, so this
--- label is stable regardless of how many levels of nesting separate the
--- element from the root - it is never rewritten as it's carried upward
--- through enclosing SREFs.
+-- | A Polygon paired with the name of the Cell it was directly defined in
+-- - the root Cell for its own Boundary/Path elements, or the Cell reached
+-- transitively through SREF. Stable regardless of nesting depth: never
+-- rewritten as it's carried upward through enclosing SREFs.
 data LabeledPolygon = LabeledPolygon
   { polygon :: !Polygon
   , parent  :: !String
   } deriving (Show, Eq, Ord)
 
--- | Every Boundary/Path element reachable from a Cell - including
--- transitively, through SREFs - grouped by Layer and expressed in the
--- Cell's own coordinate system, with each SREF's translation/rotation/
--- mirroring applied so referenced geometry lands in the right place
--- relative to the Cell that (directly or indirectly) references it. Each
--- element is labeled per 'LabeledPolygon'.
+-- | Every Boundary/Path element reachable from a Cell (including through
+-- SREFs), grouped by Layer, expressed in the Cell's own coordinate system
+-- with each SREF's translation/rotation/mirroring applied, and labeled per
+-- 'LabeledPolygon'.
 --
--- 'cells' must contain every Cell transitively referenced from 'root'
--- (e.g. the full contents of a parsed library) - an SREF naming a Cell
--- absent from 'cells' is silently treated as contributing no geometry.
+-- Precondition: 'cells' contains every Cell transitively referenced from
+-- 'root' - an SREF naming a missing Cell contributes no geometry.
 --
--- Built by knot-tying: each Cell's grouped-by-layer polygons look up the
--- memoized polygons of the Cells it references from the very map being
--- constructed, so laziness resolves the recursion without an explicit
--- topological sort (this would only loop given a cyclic SREF chain, which
--- GDS doesn't permit). This must be built with Data.Map.Lazy, not
--- .Strict: Strict's fromList forces each value into WHNF as it inserts,
--- which demands the not-yet-finished map's spine before the knot can
--- close and throws <<loop>> even for a plain DAG of references.
+-- Built by knot-tying: each Cell's polygons look up the memoized polygons
+-- of the Cells it references from the very map being constructed, so
+-- laziness resolves the recursion without a topological sort (would only
+-- loop on a cyclic SREF chain, which GDS doesn't permit). Must use
+-- Data.Map.Lazy: Strict's fromList forces each value into WHNF while
+-- inserting, demanding the unfinished map's spine and throwing <<loop>>.
 layerPolygons :: [Cell] -> Cell -> Map.Map Layer [LabeledPolygon]
 layerPolygons cells root = perCell MapLazy.! root.name
   where
     perCell :: MapLazy.Map String (Map.Map Layer [LabeledPolygon])
     perCell = MapLazy.fromList [ (c.name, cellLayerPolygons c) | c <- cells ]
 
-    -- Each LabeledPolygon's fields are strict (see 'LabeledPolygon'), so
-    -- grouping them here with Data.Map.Strict's fromListWith never lets a
-    -- chain of unevaluated polygons/labels build up behind a layer's list.
+    -- LabeledPolygon's fields are strict, so Data.Map.Strict's fromListWith
+    -- here never lets unevaluated polygons/labels build up behind a list.
     cellLayerPolygons :: Cell -> Map.Map Layer [LabeledPolygon]
     cellLayerPolygons c = Map.fromListWith (++) $
       [ (b.layer, [LabeledPolygon (boundaryToPolygon b) c.name]) | b <- c.boundary ]
@@ -88,16 +77,13 @@ layerPolygons cells root = perCell MapLazy.! root.name
          , (lyr, lps) <- Map.toList (MapLazy.findWithDefault Map.empty ref.name perCell)
          ]
 
--- | Record update syntax is avoided here (in favour of matching/rebuilding
--- via the constructor) since Pin's own 'polygon' field would otherwise
--- make 'lp { polygon = ... }' an ambiguous field update now that two
--- record types in this module share that field name.
+-- | Uses the constructor rather than record update: Pin shares the
+-- 'polygon' field name, which would make 'lp { polygon = ... }' ambiguous.
 transformLabeled :: Transform -> LabeledPolygon -> LabeledPolygon
 transformLabeled t (LabeledPolygon p prnt) = LabeledPolygon (transformPolygon t p) prnt
 
--- | The placement Geom.Transform an SREF's own translation/rotation/
--- mirroring describes, per GDS defaults: no STRANS record means no
--- reflection, and no ANGLE record means no rotation.
+-- | An SREF's placement as a Geom.Transform, per GDS defaults: no STRANS
+-- record means no reflection, no ANGLE record means no rotation.
 srefTransform :: CellRef -> Transform
 srefTransform ref = Transform
   { mirrorX  = maybe False stransMirrorX ref.translation
@@ -108,11 +94,9 @@ srefTransform ref = Transform
     stransMirrorX (GdsStransFlags mx _ _) = mx
 
 -- | A named pin: the Polygon a net-name text label sits inside, on some
--- named ".pin" layer. Both the Polygon (via its 'LabeledPolygon', which
--- also carries the Cell it came from) and the Layer it lives on are kept
--- on the record itself, so a Pin can be traced in either direction -
--- to its Polygon, or to its Layer - without a separate lookup structure
--- (Polygon has no Ord instance to key a reverse map by).
+-- named ".pin" layer. Keeps both the Polygon and its Layer on the record
+-- so either is traceable without a separate lookup structure (Polygon has
+-- no Ord instance to key a reverse map by).
 data Pin = Pin
   { label   :: !String
   , polygon :: !LabeledPolygon
@@ -120,19 +104,16 @@ data Pin = Pin
   } deriving (Show, Eq)
 
 -- | Every pin found on a Cell: for every LayerMap entry whose name ends in
--- ".pin", every Polygon on that exact (index, datatype) Layer (via
--- 'layerPolygons') that encloses the anchor point of some text label
--- sharing that layer's GDS layer *number* - the pin/label convention this
--- follows (e.g. sky130's "li1.pin", layer 67 datatype 16, labeled by text
--- on layer 67 with some other, label-specific datatype) ties a pin's
--- geometry and its net name together purely by GDS layer number, ignoring
--- datatype/texttype on both sides. "Encloses" is tested against the
--- Polygon's bounding rectangle (see 'containsPoint') since pin shapes are
--- rectangles by PDK convention.
+-- ".pin", every Polygon on that (index, datatype) Layer (via
+-- 'layerPolygons') enclosing the anchor point of a text label sharing that
+-- layer's GDS layer *number* - the sky130-style convention of matching a
+-- pin's geometry to its net label purely by GDS layer number, ignoring
+-- datatype/texttype on both sides. "Encloses" tests the Polygon's bounding
+-- rectangle (see 'containsPoint'), since pin shapes are rectangles by PDK
+-- convention.
 --
--- A pin Polygon with no enclosed label, or a label enclosed by no pin
--- Polygon, contributes nothing - only a matched (Polygon, label) pair is a
--- meaningful net connection point.
+-- An unlabeled pin Polygon, or a label enclosed by no pin Polygon,
+-- contributes nothing.
 pins :: LayerMap -> [Cell] -> Cell -> [Pin]
 pins lm cells root =
   [ Pin { label = val, polygon = lp, layer = lyr }
@@ -150,10 +131,9 @@ pins lm cells root =
       [ (lyr.index, [(coord, val)]) | (lyr, coord, val) <- cellTexts cells root ]
 
 -- | Every TextDescription's Layer, anchor Coordinate and string value,
--- reachable from a Cell - including transitively, through SREFs - with
--- each SREF's placement applied to the anchor point so it lands in the
--- Cell's own coordinate system. Built by the same knot-tying technique as
--- 'layerPolygons' - see its comment for why Data.Map.Lazy is required.
+-- reachable from a Cell (including through SREFs), with each SREF's
+-- placement applied to the anchor. Built by the same knot-tying technique
+-- as 'layerPolygons' - see there for why Data.Map.Lazy is required.
 cellTexts :: [Cell] -> Cell -> [(Layer, Coordinate, String)]
 cellTexts cells root = perCell MapLazy.! root.name
   where
@@ -168,18 +148,16 @@ cellTexts cells root = perCell MapLazy.! root.name
          , (lyr, coord, val) <- MapLazy.findWithDefault [] ref.name perCell
          ]
 
--- | Whether a Coordinate falls within (or on the border of) a Rectangle -
--- topLeft.y is the rectangle's *maximum* y, per
--- Geom.RectangleBounded's convention.
+-- | Whether a Coordinate falls within (or on the border of) a Rectangle.
+-- topLeft.y is the *maximum* y, per Geom.RectangleBounded's convention.
 containsPoint :: Rectangle -> Coordinate -> Bool
 containsPoint r c =
   c.x >= r.topLeft.x && c.x <= r.topLeft.x + r.width &&
   c.y <= r.topLeft.y && c.y >= r.topLeft.y - r.height
 
--- | A Polygon identified, for connectivity purposes, by the named layer
--- it was gathered from - a LayerMap.LayerEntry name's dot-separated
--- prefix (e.g. "poly"), valid across every datatype under that name; see
--- 'connectivity'.
+-- | A Polygon identified, for connectivity, by the named layer it was
+-- gathered from - a LayerEntry name's dot-separated prefix (e.g. "poly"),
+-- valid across every datatype under that name; see 'connectivity'.
 data LayerPolygon = LayerPolygon
   { layerName :: !String
   , labeled   :: !LabeledPolygon
@@ -187,9 +165,7 @@ data LayerPolygon = LayerPolygon
 
 -- | Every Polygon on a Cell whose LayerEntry name has the given
 -- dot-separated prefix, e.g. "poly" gathers "poly.drawing", "poly.gate",
--- "poly.res", ... together, regardless of purpose/datatype - see
--- 'connectivity' for why direct/cross connections are matched this
--- broadly.
+-- "poly.res", ... regardless of datatype.
 namedLayerPolygons :: Map.Map Layer [LabeledPolygon] -> LayerMap -> String -> [LayerPolygon]
 namedLayerPolygons grouped lm nm =
   [ LayerPolygon nm lp
@@ -199,8 +175,7 @@ namedLayerPolygons grouped lm nm =
   ]
 
 -- | Whether two Polygons' bounding rectangles overlap (a touch counts) -
--- the precondition 'Geom.polygonIntersection' requires of its inputs,
--- since it doesn't check this itself.
+-- the precondition 'Geom.polygonIntersection' requires but doesn't check.
 boundsOverlap :: Polygon -> Polygon -> Bool
 boundsOverlap p q =
   r1.topLeft.x <= r2.topLeft.x + r2.width && r2.topLeft.x <= r1.topLeft.x + r1.width &&
@@ -210,32 +185,25 @@ boundsOverlap p q =
     r2 = boundingRect q
 
 -- | Whether two Polygons are electrically touching: a true (non-zero-area)
--- overlap, per 'Geom.polygonIntersection', or plain edge-to-edge abutment -
--- sharing a boundary segment of positive length, per 'Geom.edgeTouches'.
--- Two Polygons meeting only at a single corner point count as neither, and
--- so aren't touching.
+-- overlap, per 'Geom.polygonIntersection', or edge-to-edge abutment, per
+-- 'Geom.edgeTouches'. Meeting only at a corner counts as neither.
 overlaps :: Polygon -> Polygon -> Bool
 overlaps p q = boundsOverlap p q && (isJust (polygonIntersection p q) || edgeTouches p q)
 
--- | Every pair of Polygons found to be electrically connected within a
--- Cell, per a LayerMap's "direct_connections" (Polygons on the very same
--- named layer that physically touch or overlap each other, per 'overlaps')
--- and "cross_connections" (a named layer A's Polygons bridged to a named
--- layer B's Polygons by a shared touch/overlap with some via layer C's
--- Polygons), returned as a classic adjacency list: for every connected
--- Polygon, every other Polygon it was found to touch.
+-- | Every pair of Polygons electrically connected within a Cell, per a
+-- LayerMap's "direct_connections" (same-named-layer Polygons that touch or
+-- overlap, per 'overlaps') and "cross_connections" (named layer A bridged
+-- to named layer B via a shared touch/overlap with via layer C), returned
+-- as an adjacency list.
 --
--- A "layer name" here, as it appears in the LayerMap's connection lists
--- (e.g. "poly" or "li1"), matches every LayerEntry whose own name has
--- that as its dot-separated prefix - see 'namedLayerPolygons'. GDS shares
--- one layer number across every purpose of a named layer but uses a
--- different datatype per purpose, and direct/cross connections are
--- specified at the layer-name level, not any one specific purpose.
+-- A "layer name" here matches every LayerEntry whose name has it as a
+-- dot-separated prefix - see 'namedLayerPolygons' (GDS shares one layer
+-- number across every purpose of a named layer but uses a different
+-- datatype per purpose).
 --
--- For a cross connection A-B via C: for every A Polygon overlapping some
--- C Polygon, and every B Polygon also overlapping that same C Polygon,
--- this records an A-B edge - never A-C or B-C, since C only bridges the
--- two; it isn't itself part of either net's own shape.
+-- For a cross connection A-B via C: records an A-B edge for every A/B pair
+-- overlapping the same C Polygon - never A-C or B-C, since C only bridges
+-- the two.
 connectivity :: LayerMap -> [Cell] -> Cell -> Map.Map LayerPolygon [LayerPolygon]
 connectivity lm cells root =
   Map.fromListWith (++) (concatMap symmetric (directEdges ++ crossEdges))
@@ -270,20 +238,11 @@ connectivity lm cells root =
       other -> error (toText
         ("connectivity: cross_connections entry must name exactly two layers, got " ++ show other))
 
--- | Every LayerPolygon named as a node of a 'connectivity' adjacency list
--- (the map's keys and, symmetrically, every Polygon appearing in one of
--- its edge lists), labeled with the id of its connected component - the
--- set of nodes reachable from one another by zero or more edges, treated
--- as undirected since 'connectivity' already records both directions of
--- every edge it finds. Component ids are assigned in the order their
--- component's first node is encountered while walking the map's keys, so
--- they carry no meaning beyond distinguishing one component from another.
---
--- Explores each unvisited node's component by DFS, following edges via
--- the adjacency list directly rather than consulting the map's keys
--- again - so a Polygon that only ever appears in an edge list (never as a
--- key with outgoing edges of its own) is still assigned a component, via
--- 'Map.findWithDefault' defaulting its own edge list to empty.
+-- | Every LayerPolygon in a 'connectivity' adjacency list, labeled with
+-- its connected component id (arbitrary, distinguishing components only).
+-- Explores each unvisited node by DFS over the adjacency list; a Polygon
+-- appearing only in an edge list (never as a key) still gets a component
+-- via 'Map.findWithDefault' defaulting to an empty edge list.
 connectedComponents :: Map.Map LayerPolygon [LayerPolygon] -> Map.Map LayerPolygon Int
 connectedComponents adj = go (Map.keys adj) 0 Map.empty
   where
@@ -301,21 +260,18 @@ connectedComponents adj = go (Map.keys adj) 0 Map.empty
           | otherwise = dfs (Map.findWithDefault [] x adj ++ xs) (Set.insert x seen)
                             (Map.insert x cid acc)
 
--- | Every Pin found on a Cell's own directly-defined geometry - not
--- transitively through its SREFs - by restricting 'pins' to just that
--- one Cell's own universe: an SREF naming any other Cell then
--- contributes no geometry, per 'layerPolygons''s documented fallback for
--- a Cell missing from its "cells" argument.
+-- | Every Pin on a Cell's own directly-defined geometry, not transitively
+-- through SREFs - restricts 'pins' to just that Cell (an SREF to any
+-- other Cell then contributes no geometry, per 'layerPolygons''s fallback
+-- for a Cell missing from "cells").
 localPins :: LayerMap -> Cell -> [Pin]
 localPins lm c = pins lm [c] c
 
--- | A human-readable label for one specific SREF placement: the
--- referenced Cell's name, plus its placement coordinate and (if set) its
--- rotation/mirroring - e.g. "LEAF@(100,200)" or
--- "LEAF@(100,200),rot=90.0,mirrored". Two SREFs to the very same Cell get
--- two different labels as long as they're placed differently, which
--- 'pinsByInstance' relies on to keep separate instantiations from being
--- merged together under one shared Cell name.
+-- | A human-readable label for one SREF placement: referenced Cell name
+-- plus placement coordinate and, if set, rotation/mirroring, e.g.
+-- "LEAF@(100,200)" or "LEAF@(100,200),rot=90.0,mirrored". Two SREFs to the
+-- same Cell get distinct labels as long as they're placed differently,
+-- which 'pinsByInstance' relies on to keep instantiations separate.
 instanceLabel :: CellRef -> String
 instanceLabel ref =
   ref.name ++ "@(" ++ show ref.coord.x ++ "," ++ show ref.coord.y ++ ")" ++ rot ++ mirror
@@ -325,25 +281,18 @@ instanceLabel ref =
       _               -> ""
     mirror = if maybe False (\s -> s.gdsMirrorX) ref.translation then ",mirrored" else ""
 
--- | Record update syntax is avoided here for the same reason as
--- 'transformLabeled' - Pin's own 'polygon' field would make a plain
--- record update ambiguous.
+-- | Same ambiguous-field-update reason as 'transformLabeled'.
 transformPin :: Transform -> Pin -> Pin
 transformPin t (Pin lbl (LabeledPolygon p prnt) lyr) =
   Pin lbl (LabeledPolygon (transformPolygon t p) prnt) lyr
 
--- | Every Pin reachable from a Cell - including transitively, through
--- SREFs - grouped by the specific instance it was directly defined on:
--- the root Cell's own name for a Pin defined directly on it, or an
--- SREF-placement-qualified label (see 'instanceLabel') for a Pin pulled
--- in through some SREF.
+-- | Every Pin reachable from a Cell (including through SREFs), grouped by
+-- the specific instance it was directly defined on: the root Cell's own
+-- name, or an SREF-placement-qualified label (see 'instanceLabel').
 --
--- Unlike 'pins' (whose LabeledPolygon.parent is deliberately just the
--- bare owning Cell name, stable no matter how many SREFs it's reached
--- through), this keeps multiple instantiations of the very same Cell -
--- whether from two different SREFs to it, or the same Cell reached via
--- two different parent paths - as separate groups, since each is a
--- physically distinct placement with its own Pins.
+-- Unlike 'pins' (whose LabeledPolygon.parent is just the bare owning Cell
+-- name), this keeps multiple instantiations of the same Cell as separate
+-- groups, since each is a physically distinct placement.
 pinsByInstance :: LayerMap -> [Cell] -> Cell -> Map.Map String [Pin]
 pinsByInstance lm cells root =
   Map.fromListWith (++) [ (lbl, [p]) | (lbl, p) <- walk root.name root ]
@@ -351,15 +300,12 @@ pinsByInstance lm cells root =
     cellByName :: Map.Map String Cell
     cellByName = Map.fromList [ (c.name, c) | c <- cells ]
 
-    -- Every Pin reachable from Cell c (including transitively through its
-    -- own SREFs), expressed in c's own local coordinate system, each
-    -- tagged with the instance label of whichever Cell - c itself, or an
-    -- SREF-placed descendant - it was directly defined on. A descendant's
-    -- Pins are transformed once per level as they bubble back up through
-    -- each enclosing SREF - the same telescoping composition
-    -- 'layerPolygons' relies on - but here the label attached at the
-    -- point of origin is carried up unchanged, rather than collapsing to
-    -- a bare Cell name.
+    -- Every Pin reachable from Cell c, in c's local coordinate system,
+    -- tagged with the instance label of whichever Cell (c, or an
+    -- SREF-placed descendant) it was directly defined on. A descendant's
+    -- Pins are transformed once per level bubbling up through each
+    -- enclosing SREF, same as 'layerPolygons', but the origin label is
+    -- carried up unchanged rather than collapsing to a bare Cell name.
     walk :: String -> Cell -> [(String, Pin)]
     walk selfLabel c =
       [ (selfLabel, p) | p <- localPins lm c ]
@@ -370,13 +316,9 @@ pinsByInstance lm cells root =
          ]
 
 -- | Every instance label reachable from a Cell (per 'pinsByInstance''s
--- grouping) paired with the name of the Cell it's an instance of - the
--- root Cell's own name for itself (its "type" is trivially itself), or an
--- SREF's own 'name' field (the Cell it references) for every
--- transitively reached instance. This is 'pinsByInstance''s own instance
--- labeling, computed independently of any Pins, so a 'netlist' lookup can
--- tell what a given instance label was placed *from* without re-deriving
--- it from the label string.
+-- grouping) paired with the name of the Cell it's an instance of, so a
+-- 'netlist' lookup can tell what an instance label was placed *from*
+-- without re-deriving it from the label string.
 instanceTypes :: [Cell] -> Cell -> Map.Map String String
 instanceTypes cells root = Map.fromList (walk root.name root.name root)
   where
@@ -392,48 +334,36 @@ instanceTypes cells root = Map.fromList (walk root.name root.name root)
         ]
 
 -- | The named-layer prefix (e.g. "li1") a Layer belongs to, per the
--- LayerMap entry with exactly this (layer, datatype) pair - the same
--- convention 'namedLayerPolygons' matches connectivity layer names
--- against.
+-- LayerMap entry with exactly this (layer, datatype) pair.
 layerPrefixName :: LayerMap -> Layer -> Maybe String
 layerPrefixName lm lyr = listToMaybe
   [ takeWhile (/= '.') e.name | e <- lm.layers, e.layer == lyr.index, e.datatype == lyr.kind ]
 
--- | The 'connectivity' graph node (per its adjacency list's keys) a Pin's
--- own Polygon corresponds to, if its Layer belongs to some named layer -
--- 'Nothing' for a Pin whose Layer isn't named at all in the LayerMap
--- (shouldn't normally happen, since every ".pin" layer 'pins' matches
--- against is itself a named LayerMap entry, sharing its GDS layer number
--- with some other purpose under the same name).
+-- | The 'connectivity' graph node a Pin's Polygon corresponds to, if its
+-- Layer belongs to some named layer.
 pinLayerPolygon :: LayerMap -> Pin -> Maybe LayerPolygon
 pinLayerPolygon lm p = (\nm -> LayerPolygon nm p.polygon) <$> layerPrefixName lm p.layer
 
 -- | Every ((component, pin), (component, pin)) connection reachable from
--- a named pin on a Cell's own definition - "reachable" meaning: starting
--- from that pin's own physically connected net (a maximal set of
--- touching Polygons, per 'connectivity'), then, for every other declared
--- pin also touching that net, fanning out to that pin's own component's
--- *other* declared pins - without ever tracing a component's own internal
--- wiring - to explore whatever nets *they* touch, and so on transitively.
--- Every pair of declared pins sharing a single net becomes one
--- connection; a net touching no declared pin, or only one, contributes
+-- a named pin on a Cell's own definition: from that pin's physically
+-- connected net (a maximal set of touching Polygons, per 'connectivity'),
+-- fan out to every other declared pin touching that net, then to each of
+-- those pins' components' *other* declared pins - never tracing a
+-- component's internal wiring - to explore whatever nets they touch, and
+-- so on transitively. Every pair of declared pins sharing a net becomes
+-- one connection; a net touching zero or one declared pins contributes
 -- none.
 --
--- "Declared" means: the pin's owning instance's type has an entry in the
--- given ComponentList, and the pin's own label is named among that
--- entry's own pins - see 'declaredPins'. A Pin found geometrically (via
--- 'pinsByInstance') but absent from its component's declared pin list -
--- e.g. a power/ground pin like VPWR/VGND that a components-file entry
--- doesn't bother naming - never counts as a netlist node at all: not as
--- a connection endpoint, and not as somewhere to fan out from. This is
--- why a components file is needed at all, on top of the LayerMap: it's
--- what tells the search which SREF instances are opaque "components",
--- and which of their pins are worth reporting, as opposed to plain
--- unrecognized geometry that only contributes to net shapes.
+-- "Declared" means the pin's owning instance's type has a ComponentList
+-- entry naming that pin - see 'declaredPins'. A geometrically-found Pin
+-- absent from its component's declared list (e.g. VPWR/VGND) is never a
+-- netlist node, as endpoint or fan-out source. This is why a components
+-- file is needed on top of the LayerMap: it says which SREF instances are
+-- opaque "components" and which of their pins matter, versus plain
+-- unrecognized geometry that only shapes nets.
 --
--- Errors if 'outputPinName' isn't declared among root's own pins (root
--- must itself have a ComponentList entry, matching its own Cell name -
--- the same convention every other placed component follows).
+-- Precondition: 'outputPinName' is declared among root's own pins (root
+-- needs its own ComponentList entry, matching its Cell name).
 netlist :: LayerMap -> ComponentList -> [Cell] -> Cell -> String -> Set.Set ((String, String), (String, String))
 netlist lm compList cells root outputPinName = case startNode of
   Nothing   -> error (toText ("netlist: no such declared pin " ++ show outputPinName ++ " on cell " ++ show root.name))
@@ -443,10 +373,9 @@ netlist lm compList cells root outputPinName = case startNode of
     types = instanceTypes cells root
 
     -- Every geometrically-found Pin (per 'pinsByInstance'), restricted to
-    -- just those actually named in their owning instance's own
-    -- components-file entry - a Pin whose instance has no ComponentList
-    -- entry at all (an unrecognized SREF) is dropped entirely, since
-    -- 'Map.findWithDefault' on a missing key already yields no pins.
+    -- those named in their owning instance's components-file entry - an
+    -- unrecognized SREF instance (no ComponentList entry) drops out
+    -- entirely, since 'Map.findWithDefault' on a missing key yields none.
     declaredPins :: Map.Map String [Pin]
     declaredPins = Map.mapWithKey (\instLbl -> filter ((`Set.member` declaredNames instLbl) . (.label)))
                                    (pinsByInstance lm cells root)
@@ -460,8 +389,8 @@ netlist lm compList cells root outputPinName = case startNode of
       p <- find (\pin -> pin.label == outputPinName) (Map.findWithDefault [] root.name declaredPins)
       pinLayerPolygon lm p
 
-    -- Every declared pin's own connectivity-graph node, reverse-indexed
-    -- to the (instance label, Pin) it came from.
+    -- Every declared pin's connectivity-graph node, reverse-indexed to
+    -- the (instance label, Pin) it came from.
     pinNode :: Map.Map LayerPolygon (String, Pin)
     pinNode = Map.fromList
       [ (lp, (instLbl, p))
@@ -470,9 +399,8 @@ netlist lm compList cells root outputPinName = case startNode of
       , Just lp        <- [pinLayerPolygon lm p]
       ]
 
-    -- pinId is only ever applied to nodes drawn from 'netPins' below,
-    -- which are filtered to exactly the keys of 'pinNode' - so the lookup
-    -- always succeeds.
+    -- Only ever applied to nodes from 'netPins' below, filtered to
+    -- exactly the keys of 'pinNode', so the lookup always succeeds.
     pinId :: LayerPolygon -> (String, String)
     pinId n = (instLbl, p.label) where (instLbl, p) = pinNode Map.! n
 
@@ -481,9 +409,8 @@ netlist lm compList cells root outputPinName = case startNode of
       [ lp | p <- Map.findWithDefault [] instLbl declaredPins, Just lp <- [pinLayerPolygon lm p] ]
 
     -- The full set of connectivity-graph nodes physically touching
-    -- 'start', found the same way 'connectedComponents' explores one
-    -- component - by DFS over 'adj', not stopping at pin nodes, so a net
-    -- touching several pins is fully traced.
+    -- 'start' - DFS over 'adj', same as 'connectedComponents', not
+    -- stopping at pin nodes so a net touching several pins is fully traced.
     netOf :: LayerPolygon -> [LayerPolygon]
     netOf start = walk [start] Set.empty
       where
@@ -496,15 +423,11 @@ netlist lm compList cells root outputPinName = case startNode of
     canon (a, b) | a <= b    = (a, b)
                  | otherwise = (b, a)
 
-    -- Explores a worklist of pin nodes to seed net traces from: for each
-    -- unvisited seed, traces its whole net, records every pair of
-    -- declared pins found on that net, then - per 'netlist''s own
-    -- documentation - adds every *other*, not-yet-searched declared pin
-    -- of any component touched by the net as a further seed (an
-    -- undeclared or unrecognized instance's pins are never among
-    -- 'declaredPins' in the first place, so 'siblingNodes' naturally
-    -- yields nothing for one), rather than ever continuing past a pin
-    -- node via 'adj' directly.
+    -- Explores a worklist of pin-node seeds: for each unvisited seed,
+    -- traces its net, records every declared-pin pair found on it, then
+    -- adds every other declared pin of any component touched by the net
+    -- as a further seed (never continuing past a pin node via 'adj'
+    -- directly). 'siblingNodes' yields nothing for an undeclared instance.
     go :: [LayerPolygon] -> Set.Set LayerPolygon -> [((String, String), (String, String))]
        -> [((String, String), (String, String))]
     go [] _ acc = acc
@@ -514,10 +437,9 @@ netlist lm compList cells root outputPinName = case startNode of
       where
         netNodes = netOf seedNode
         netPins  = filter (`Map.member` pinNode) netNodes
-        -- A single named pin can be drawn as several disjoint shapes (so
-        -- more than one node in 'netPins' can share the very same
-        -- pinId) - excluding same-pinId pairs keeps a pin from ever
-        -- appearing "connected" to itself.
+        -- A named pin can be drawn as several disjoint shapes sharing one
+        -- pinId; excluding same-pinId pairs keeps a pin from "connecting"
+        -- to itself.
         pairs    =
           [ canon (pinId a, pinId b)
           | (a : bs) <- tails netPins
