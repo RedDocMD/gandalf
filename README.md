@@ -468,3 +468,187 @@ be helpful later. Using Claude, I convert the ad-hoc description into a [puzzle.
 format, where helpful descriptions have been added based of the provided behavioural verilog files in the
 PDK repo. The haskell side parser resides in [Component.hs](src/Component.hs), thus giving the parser
 a list of the "parts", their pins and which layer to look for them in.
+
+### Shelob's Lair
+
+In the end, we need a sort of a netlist that will connect the various components (cells). Once we
+have this at hand, we can write the netlist in Verilog and simulate, getting ourselves out of the Mines'.
+Fortunately for us, the connectivity information does reside in the GDS file. Unfortunately, there is
+no "list of wires" or something of that sort. The connectivity is entirely geometric - overlapping 
+boundaries/paths in a conductive layer are electrically connected. Overlaps between layers
+and the VIA's give connection between layers.
+
+So, how do we find overlaps? Remember that all boundaries and paths are essentially ortholinear?
+(well rounded edges would have thrown a spanner in the works, but luckily they are not present).
+This leads to a rather easy reject-test for overlaps - find bounding boxes for two such polygons
+and check their intersections (`boundsOverlap` in [Relationship.hs](src/Relationship.hs)).
+If they do pass this test, we can perform the actual intersection test to find the overlapping region
+, as in `polygonIntersection` in [Geom.hs](src/Geom.hs). The intersecting vertices are discovered
+using a sweep-line algorithm, sweeping along the X-axis. A slight gotcha that I ran into here
+is that polygons that merely touch (share an edge) are also considered to be connected. Electrically
+that would seem to be a bit silly, but perhaps in practice during manufacturing even touching
+edges actually get a slight overlap.
+
+Cool, now we have a method to find the *web* (Shelob is a spider, after all) of connectivity, this essentially becomes a graph-reachability problem.
+We can start at any output pin, `success` in the case of the main puzzle. We can find all the reachable
+polygons starting from the polygon of the output pin. Some of these polygons will be other pins in
+some other component. Here we can note down the inter-pin connections. Now, for each component we reached,
+we can restart the DFS from the other pins of the component that haven't been visited yet.
+Eventually, we'll reach the input pins and there will be no more pins to explore. Each connection can
+be noted in the form of `componentA.pinX <--> componentB.pinY`. The `netlist` command does exactly that,
+dumping the netlist in the format of [puzzle_fixed.netlist](netlist/puzzle_fixed.netlist) (fixed because
+it initially I was ignoring touching polygons).
+
+This netlist can be easily converted to a Verilog module. The `verilog` command does just that.
+It uses the pin definitions to know which set of pins belong to the same component. Each connection
+becomes a wire. Thus each line in the netlist becomes a matter of attaching the wire to the ports
+of two component instantiations it is connecting. Unique component instantiations can be found by
+noting the coordinate of each component (that is also dumped in the netlist file).
+
+The generated file does require a little bit of hand correction, because `O[0]` through to `O[7]`
+appear as separate pins in the GDS file, but in Verilog world is simply `output [7:0] O`. This leads
+us to [puzzle_fixed.v](netlist/puzzle_fixed.v).
+
+## Back to Middle Earth
+
+As the puzzle description mentions, some parts of the circuit serve to only drive `O` and thus
+can be removed while analysing `success`. To this end, I wrote a script [trim_success](netlist/trim_success.py)
+which parses in the module using `pyverilog`, then builds a directed connected graph. In particular,
+the direction of the edges are inverted. For example, if I have the following snippet:
+```verilog
+and_block and1(
+    .I1(wire1),
+    .I2(wire2),
+    .O(conn)
+);
+
+xor_block xor1(
+    .I1(conn),
+    .I2(wire3),
+    .O(wire4)
+);
+```
+In terms of data flow, the connection is `and1.O -> xor1.I1`. However, for reachability we store 
+exactly the opposite, ie, `xor1.I1 -> and1.O`. Then, performing a DFS we obtain all the reachable
+components. Simply deleting all the unreachable instantiations and dumping the resulting circuit
+as a module gives us [puzzle_success.v](netlist/puzzle_success.v).
+
+### Call an ambulance
+
+<p align="center">
+    <img src="assets/call_an_ambulance.png" alt="Call an ambulance meme" width="45%">
+</p>
+
+Coz I have got [Yosys](https://yosyshq.net/yosys/) at my disposal. 
+
+Although it's primary a Verilog
+synthesis tool, it is basically a swiss-army knife for Verilog analysis.
+As I later discovered while playing around, writing the above Python script by hand was unnecessary.
+I could have done the same with like 4 lines of Yosys commands in a TCL file.
+
+Before further analysing, I run Yosys with the following commands, as present in [puzzle.tcl](tcl/puzzle.tcl).
+The contents of the file are as follows:
+```tcl
+read_verilog netlist/puzzle_success.v cells/verilog/*.v
+hierarchy -top puzzle
+proc
+cd puzzle
+connect -set enable 1'b1
+connect -set rst_n 1'b1
+cd ..
+flatten
+opt -purge -sat -full
+write_verilog -noattr netlist/puzzle_flattened_success.v
+```
+Yosys has a bunch of handy commands for analysis. `flatten` expands out all the Verilog modules for
+all the referenced cells. For the purpose of analysis, we can set `enable` and `rst_n` to `1`.
+This way we can get rid of the reset path. The same is done via the `connect` commands.
+`opt` runs a slew of merging, simplification and elimination operations until the circuit doesn't
+change any more. The resulting circuit is in [puzzle_flattened_success.v](netlist/puzzle_flattened_success.v).
+
+Yosys has a handy command that dumps the resulting circuit as a JSON file then a tool like
+`netlistsvg` can be used to convert it to an SVG.
+The full image is present [here](assets/circuit.svg). Below is a zoomed out PNG version:
+
+<details>
+<summary>Click to expand</summary>
+
+<p align="center">
+    <img src="assets/circuit_ss.png" alt="Circuit" width="75%">
+</p>
+
+</details>
+
+Yeah, so basically unreadable. Unlike the demo puzzle.
+
+### If all you have is a hammer, everything looks like a nail
+
+Ask any reverse engineer what their favourite tool in a pinch is. The answer will always be the same:
+**SAT solver**. I mean, if you have an output and a formula to it and want to know the input, it doesn't
+get any easier. And guess what, Yosys already has a SAT solver built into it!
+
+The `sat` command in Yosys has a `-seq` flag in it. All that does is duplicate the circuit, carry
+over older states as dictated by the D flip-flops and repeat the constraints. Of course, we would
+need to know how many steps to insert in the sequence. The example VCD file already has a hint,
+`I` would be 121 bits long. Of course, that may be a red herring, so I decide to pull out the other
+hammer in CS: *binary search*. This does assume that `I` has a minimum input length, not *a* specific
+input length. If the binary search fails, we can always fall back to linear search. 
+[sat_binary_search.py](tb/sat_binary_search.py) does exactly that. And guess what, it finds the minimum sequence
+length for I before `success` is set to be **123**. More importantly, I have a valid input sequence for `I`!
+
+```
+000000010101000010000000000001010101000000000000101000000100000100000010000010100001000000010000001000001001000101000000011
+```
+
+Now, all I have to do is feed it into a [testbench](tb/success_tb.v), simulate the module with `iverilog`
+and check the dumped signals in GtkWave.
+
+<p align="center">
+    <img src="assets/output_vcd.png" alt="Output VCD" width="95%">
+</p>
+
+The output is (predictably an ASCII string) `(* TWO STARS *)`.
+
+## Onions have layers
+
+<p align="center">
+    <img src="assets/shrek.jpeg" alt="Shrek" width="25%">
+</p>
+
+The output is kinda cryptic and the structure of the input doesn't help us decipher what the puzzle
+does right away. However, we can peel the layers away one by one.
+
+For one, the discrepancy between the expected input length of 121 and obtained length of 123 is easy
+to explain. If we change the last two bits, it turns out that the result doesn't change. In effect,
+the last two input positions are don't cares. Most likely, it takes two further cycles for `success`
+to latch on, hence the delay.
+
+We can try to discover if there are any more outputs produced by the circuit. An easy way to do it is
+as follows: accumulate the non-zero values produced by output. Compare the accumulated output
+against outputs already obtained and set that to 1 if only a new output has been produced. Then
+run the SAT solver for a fixed number of cycles (I chose this to be 140) and try to obtain a 1.
+The module for this is in [extract_compare_outputs.v](tb/extract_compare_outputs.v) and the TCL script
+is in [extract.tcl](tcl/extract.tcl). The Verilog file now contains 3 distinct outputs, but I started
+out with only 1. This way we get two more strings, `TRY AGAIN` and `TWO NOT TOUCH`.
+
+`TRY AGAIN` is of course a generic message, but `TWO NOT TOUCH` is more significant. Looking it up
+leads me straight to the [Star Battles](https://krazydad.com/twonottouch/) puzzle page. Turns out,
+two-stars is a variant where each row, column and region must have two stars and no two stars can touch
+(diagonal touching counts). And, guess what, in one version, the grid is **11x11*, and `11 x 11 = 121`.
+
+The input does have 121 bits and 22 ones!
+
+<p align="center">
+    <img src="assets/battle.png" alt="Battle" width="25%">
+</p>
+
+There is still one dud though. I don't know what the regions are in the above puzzle. The solution
+input is unique, as in, there are no bits that can be flipped and still keep the rest of the puzzle
+SAT. This is investigated in [sat_valid_inputs.py](tb/sat_valid_inputs.py). Presumably, there is a
+per-region counter in the circuit but I couldn't figure out how to find that out.
+
+## AI Disclaimer
+
+Most of the Haskell code was written with Claude Code. I did not use it to analyze the warmup puzzle or
+the actual puzzle. The python, verilog and tcl scripts in tb/ and tcl/ are hand written. This
+walkthrough is hand-written as well, but the GDS record image has been made with Claude.
