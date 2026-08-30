@@ -634,7 +634,7 @@ out with only 1. This way we get two more strings, `TRY AGAIN` and `TWO NOT TOUC
 `TRY AGAIN` is of course a generic message, but `TWO NOT TOUCH` is more significant. Looking it up
 leads me straight to the [Star Battles](https://krazydad.com/twonottouch/) puzzle page. Turns out,
 two-stars is a variant where each row, column and region must have two stars and no two stars can touch
-(diagonal touching counts). And, guess what, in one version, the grid is **11x11*, and `11 x 11 = 121`.
+(diagonal touching counts). And, guess what, in one version, the grid is *11x11*, and `11 x 11 = 121`.
 
 The input does have 121 bits and 22 ones!
 
