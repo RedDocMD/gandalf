@@ -647,8 +647,228 @@ input is unique, as in, there are no bits that can be flipped and still keep the
 SAT. This is investigated in [sat_valid_inputs.py](tb/sat_valid_inputs.py). Presumably, there is a
 per-region counter in the circuit but I couldn't figure out how to find that out.
 
+## Rotary Input Dials
+
+*This section was added on 06.09.26, so after the deadline*
+
+<p align="center">
+    <img src="assets/alan.png" alt="Alan in Imitation Game" width="65%">
+    <figcaption align="center"><i>Love just lost Germany the whole bloody war!</i></figcaption>
+</p>
+
+Alan Turing solved the Enigma puzzle using known-plaintext attack, where portions of the message
+that contained predictable words such as *weather* massively cuts down the search space. Each known
+letter transposition essentially cuts the search space by roughly 26 (not exactly because it's a permutation).
+
+For our puzzle, we can control the input. It doesn't have to be a valid input to study the behaviour
+of the various signals inside the puzzle. In particular, if we step back and ask the question: How does
+one write a "program" (circuits are also programs) to determine whether a 121 length bit-string is a
+valid solution to the game? One would need to ensure the following:
+- Not more than two stars per row
+- Not more than two stars per column
+- Not more than two stars per region
+- No touching stars
+
+The first three per-something constraints are most naturally solved by per-something counters. One can
+of-course write a fully combinational expression for each of these constraints (something a CSP solver would do).
+But it seems rather wasteful. Anyway, I am hitting in the dark at this point so I can only try
+hypotheses. The no touching constraint can be easily solved by checking each bit against the bit
+that occurred 1 cycle, 11 cycles and 12 cycles before, thus requiring no counters.
+
+So here's my shot in the dark: for each region there is a counter. By individually switching on each
+bit in the bit-string, I can potentially find out which bit influences which counter. Bits influencing
+the same counters (ignoring the row and column counters) must belong to the same region.
+
+How does one find a counter? Firstly, a counter will be a set of bits. Turning on one bit should
+flip the LSB signal of the counter. Ideally, if that signal just acts as a counter, it will
+flip within a cycle or so of the bit being turned on and stay at 1 for the remainder of the process.
+If we set multiple bits, the LSB bit of the shared counter should flip that many times.
+
+Now to test this hypothesis. [puzzle_flattened_success_rst.v](netlist/puzzle_flattened_success_rst.v)
+is the same as the old [puzzle_flattened_success.v](netlist/puzzle_flattened_success.v), except
+now it has a reset signal so that we can actually simulate it. The test-bench to simulate it is in
+[probe_tb.v](tb/probe_tb.v), which loads in the bits for `I` from [I_bits.txt](tb/I_bits.txt).
+
+To test my hypothesis for the existence of counters, I put in bit-string with positions 0, 11 and 22
+set to 1, ie, the first three cells of column 0 set to 1. If there is a column counter for column 0,
+it's value should go from 0 to 1 to 0 to 1 and stay at 1. The transitions should occur in sync with the
+bit transitions in `I`.
+
+<p align="center">
+    <img src="assets/col_counter.png" alt="Column Counter" width="75%">
+</p>
+
+Lo and behold! There are several signals have the stated behaviour. One of them will be the column
+count, the others can either be fan-outs of the counter LSB or be a global counter, or even a region
+counter. Either way, we can write a program that run's the simulation with a given bit in `I` set,
+then finds the signals that transition to 1 after this bit flips and stays at 1. We can measure the `delta`
+between the cycle the bit flips and the signal flips. Ones with `delta = 0` (combinational) and `delta = 1`
+(first sequential influence) are the ones of interest. In particular, a counter almost certainly will have
+`delta = 1`, as shown in the above image. [scan_local_counters.py](tb/scan_local_counters.py) does just that.
+It can save to JSON and outputs tables like the following:
+
+```sh
+❯ python3 tb/scan_local_counters.py 1
+Wrote tb/I_bits.txt with bit 1 set.
+tb/probe_tb.v:38: warning: input port enable is coerced to inout.
+VCD info: dumpfile tb/waves_probe.vcd opened for output.
+tb/probe_tb.v:63: $finish called at 14550 (100ps)
+
+I blipped to 1 at cycle 4 (t=350)
+
+Signal  Cycle turned 1  Delta
+-----------------------------
+_0030_               4      0
+_0338_               4      0
+net302               4      0
+net515               4      0
+net531               4      0
+net568               4      0
+_0302_               5      1
+_0393_               5      1
+net175               5      1
+net301               5      1
+net374               5      1
+net662               5      1
+net95                5      1
+net359              13      9
+net358              14     10
+net347             123    119
+net268             124    120
+net538             124    120
+net61              125    121
+```
+
+Using the JSON output of several signals, we can find the intersection of the set of blipping signals
+at any given delta. [find_common_signals.py](tb/find_common_signals.py) does this. Now I am going to
+pretend I didn't waste way to much time trying out different combinations by hand, when I should've
+just jumped straight to the point. 
+
+Firstly, I couldn't find unique row counters. (I have omitted some lines in the next output)
+
+```sh
+❯ python3 tb/find_common_signals.py 0,1,2,3,4,5,6,7,8,9,10 1
+
+Signal   pos 0   pos 1   pos 2   pos 3   pos 4   pos 5   pos 6   pos 7   pos 8   pos 9  pos 10
+----------------------------------------------------------------------------------------------
+_0302_       4       5       6       7       8       9      10      11      12      13      14
+_0393_       4       5       6       7       8       9      10      11      12      13      14
+net175       4       5       6       7       8       9      10      11      12      13      14
+net374       4       5       6       7       8       9      10      11      12      13      14
+net662       4       5       6       7       8       9      10      11      12      13      14
+
+
+❯ python3 tb/find_common_signals.py 11,12,13,14,15,16,17,18,19,20,21 1
+
+Signal  pos 11  pos 12  pos 13  pos 14  pos 15  pos 16  pos 17  pos 18  pos 19  pos 20  pos 21
+----------------------------------------------------------------------------------------------
+_0302_      15      16      17      18      19      20      21      22      23      24      25
+_0393_      15      16      17      18      19      20      21      22      23      24      25
+net175      15      16      17      18      19      20      21      22      23      24      25
+net374      15      16      17      18      19      20      21      22      23      24      25
+net662      15      16      17      18      19      20      21      22      23      24      25
+```
+
+This actually makes sense, since we are scanning the input row-by-row (it might as well be column
+-by-column, but its most likely along one axis) we can simply keep a counter, check it and reset it every 11
+cycles. In particular, if we put all signals in the list, then we get:
+
+```sh
+❯ python3 tb/find_common_signals.py 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120 1
+
+Signal   pos 0   pos 1   pos 2   pos 3   pos 4   pos 5   pos 6   pos 7   pos 8   pos 9  pos 10  pos 11  pos 12  pos 13  pos 14  pos 15  pos 16  pos 17  pos 18  pos 19  pos 20  pos 21  pos 22  pos 23  pos 24  pos 25  pos 26  pos 27  pos 28  pos 29  pos 30  pos 31  pos 32  pos 33  pos 34  pos 35  pos 36  pos 37  pos 38  pos 39  pos 40  pos 41  pos 42  pos 43  pos 44  pos 45  pos 46  pos 47  pos 48  pos 49  pos 50  pos 51  pos 52  pos 53  pos 54  pos 55  pos 56  pos 57  pos 58  pos 59  pos 60  pos 61  pos 62  pos 63  pos 64  pos 65  pos 66  pos 67  pos 68  pos 69  pos 70  pos 71  pos 72  pos 73  pos 74  pos 75  pos 76  pos 77  pos 78  pos 79  pos 80  pos 81  pos 82  pos 83  pos 84  pos 85  pos 86  pos 87  pos 88  pos 89  pos 90  pos 91  pos 92  pos 93  pos 94  pos 95  pos 96  pos 97  pos 98  pos 99  pos 100  pos 101  pos 102  pos 103  pos 104  pos 105  pos 106  pos 107  pos 108  pos 109  pos 110  pos 111  pos 112  pos 113  pos 114  pos 115  pos 116  pos 117  pos 118  pos 119  pos 120
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+_0302_       4       5       6       7       8       9      10      11      12      13      14      15      16      17      18      19      20      21      22      23      24      25      26      27      28      29      30      31      32      33      34      35      36      37      38      39      40      41      42      43      44      45      46      47      48      49      50      51      52      53      54      55      56      57      58      59      60      61      62      63      64      65      66      67      68      69      70      71      72      73      74      75      76      77      78      79      80      81      82      83      84      85      86      87      88      89      90      91      92      93      94      95      96      97      98      99     100     101     102     103      104      105      106      107      108      109      110      111      112      113      114      115      116      117      118      119      120      121      122      123      124
+_0393_       4       5       6       7       8       9      10      11      12      13      14      15      16      17      18      19      20      21      22      23      24      25      26      27      28      29      30      31      32      33      34      35      36      37      38      39      40      41      42      43      44      45      46      47      48      49      50      51      52      53      54      55      56      57      58      59      60      61      62      63      64      65      66      67      68      69      70      71      72      73      74      75      76      77      78      79      80      81      82      83      84      85      86      87      88      89      90      91      92      93      94      95      96      97      98      99     100     101     102     103      104      105      106      107      108      109      110      111      112      113      114      115      116      117      118      119      120      121      122      123      124
+net175       4       5       6       7       8       9      10      11      12      13      14      15      16      17      18      19      20      21      22      23      24      25      26      27      28      29      30      31      32      33      34      35      36      37      38      39      40      41      42      43      44      45      46      47      48      49      50      51      52      53      54      55      56      57      58      59      60      61      62      63      64      65      66      67      68      69      70      71      72      73      74      75      76      77      78      79      80      81      82      83      84      85      86      87      88      89      90      91      92      93      94      95      96      97      98      99     100     101     102     103      104      105      106      107      108      109      110      111      112      113      114      115      116      117      118      119      120      121      122      123      124
+net374       4       5       6       7       8       9      10      11      12      13      14      15      16      17      18      19      20      21      22      23      24      25      26      27      28      29      30      31      32      33      34      35      36      37      38      39      40      41      42      43      44      45      46      47      48      49      50      51      52      53      54      55      56      57      58      59      60      61      62      63      64      65      66      67      68      69      70      71      72      73      74      75      76      77      78      79      80      81      82      83      84      85      86      87      88      89      90      91      92      93      94      95      96      97      98      99     100     101     102     103      104      105      106      107      108      109      110      111      112      113      114      115      116      117      118      119      120      121      122      123      124
+net662       4       5       6       7       8       9      10      11      12      13      14      15      16      17      18      19      20      21      22      23      24      25      26      27      28      29      30      31      32      33      34      35      36      37      38      39      40      41      42      43      44      45      46      47      48      49      50      51      52      53      54      55      56      57      58      59      60      61      62      63      64      65      66      67      68      69      70      71      72      73      74      75      76      77      78      79      80      81      82      83      84      85      86      87      88      89      90      91      92      93      94      95      96      97      98      99     100     101     102     103      104      105      106      107      108      109      110      111      112      113      114      115      116      117      118      119      120      121      122      123      124
+```
+
+It is the exact same set of signals as when comparing rows! Thus, we can safely ignore these signals
+while accounting for region and column counters. If we consider column 0 and column 1:
+
+```sh
+❯ python3 tb/find_common_signals.py 0,11,22,33,44,55,66,77,88,99,110 1
+
+Signal   pos 0  pos 11  pos 22  pos 33  pos 44  pos 55  pos 66  pos 77  pos 88  pos 99  pos 110
+-----------------------------------------------------------------------------------------------
+_0302_       4      15      26      37      48      59      70      81      92     103      114
+_0393_       4      15      26      37      48      59      70      81      92     103      114
+net175       4      15      26      37      48      59      70      81      92     103      114
+net310       4      15      26      37      48      59      70      81      92     103      114 <-- Col 1 counter
+net374       4      15      26      37      48      59      70      81      92     103      114
+net662       4      15      26      37      48      59      70      81      92     103      114
+
+❯ python3 tb/find_common_signals.py 1,12,23,34,45,56,67,78,89,100,111 1
+
+Signal   pos 1  pos 12  pos 23  pos 34  pos 45  pos 56  pos 67  pos 78  pos 89  pos 100  pos 111
+------------------------------------------------------------------------------------------------
+_0302_       5      16      27      38      49      60      71      82      93      104      115
+_0393_       5      16      27      38      49      60      71      82      93      104      115
+net175       5      16      27      38      49      60      71      82      93      104      115
+net374       5      16      27      38      49      60      71      82      93      104      115
+net662       5      16      27      38      49      60      71      82      93      104      115
+net95        5      16      27      38      49      60      71      82      93      104      115 <-- Col 2 counter
+```
+
+Thus we can identify column counters in this fashion. Of course, if some column also belongs entirely
+to a region, then we won't be able to identify the column and region counters. Luckily this isn't the
+case, although it would have made the next bit of code only marginally difficult. I tried out a few
+combinations of cells to see if I can find the region counter from them. I got lucky quickly:
+
+```sh
+❯ python3 tb/find_common_signals.py 0,1,11 1
+
+Signal   pos 0   pos 1  pos 11
+------------------------------
+_0302_       4       5      15
+_0393_       4       5      15
+net175       4       5      15
+net374       4       5      15
+net662       4       5      15
+net301       4       5      15 <-- Region counter!
+```
+
+Feeling pretty confident about my hypothesis about counters, I make the following conclusion: Find
+common signals for all pairs of bits. Removing the global common signals, and the column common
+signals, there should be exactly 1 more common signal left. If there is 2, something is wrong with
+the hypothesis. Otherwise, all cells sharing that common signal belong to the same region.
+[find_grid_regions.py](tb/find_grid_regions.py) performs this algorithm.
+
+```sh
+❯ python3 tb/find_grid_regions.py
+No pair had more than 1 residual common signal.
+
+Residual common signals and their bit positions (11 signal(s)):
+
+  net289: [10, 21, 32, 40, 43, 49, 50, 51, 52, 53, 54, 62, 73, 84, 92, 93, 94, 95, 104, 105, 106, 114, 115, 116, 117, 118, 119, 120]
+  net292: [75, 76, 86, 87, 97, 98]
+  net295: [7, 17, 18, 29, 30, 41, 42]
+  net298: [13, 24, 35, 44, 46, 55, 56, 57]
+  net301: [0, 1, 2, 3, 4, 11, 12, 14, 15, 22, 23, 33, 34, 45]
+  net307: [78, 79, 80, 89, 90, 101, 111, 112]
+  net319: [91, 102, 103, 113]
+  net75: [63, 64, 65, 74, 85, 96, 107, 108, 109]
+  net79: [37, 38, 39, 48, 59, 60, 61, 72, 81, 82, 83]
+  net87: [5, 6, 16, 25, 26, 27, 28, 36, 47, 58, 66, 67, 68, 69, 70, 71, 77, 88, 99, 100, 110]
+  net91: [8, 9, 19, 20, 31]
+```
+
+Jackpot! I then modified [two_not_touch_grid.py](tb/two_not_touch_grid.py) to be able to take in a
+JSON representation of the above ([tb/grid_regions.json](tb/grid_regions.json)) and draw thick
+lines around the regions (AI rocks). Okay, sure the image below is the second attempt, where I added
+the blue colour ...
+
+<p align="center">
+    <img src="assets/battle_with_regions.png" alt="JSC" width="50%">
+</p>
+
+Much like the JS logo which spells out "JSC" using the positions on the rotary dial that was used
+on the Bombe machine (the rotary dial is  demonstrated beautifully just after the above scene in The Imitation Game),
+the puzzle regions spell out the same - all reverse engineered from a single GDS file.
+
 ## AI Disclaimer
 
 Most of the Haskell code was written with Claude Code. I did not use it to analyze the warmup puzzle or
-the actual puzzle. The python, verilog and tcl scripts in tb/ and tcl/ are hand written. This
-walkthrough is hand-written as well, but the GDS record image has been made with Claude.
+the actual puzzle. This walkthrough is hand-written as well, but the GDS record image has been made with Claude.
